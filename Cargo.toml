@@ -1,0 +1,15 @@
+[package]
+name = "vulkan-example"
+version = "0.1.0"
+authors = ["Fredrik Fornwall <fredrik@fornwall.net>"]
+edition = "2021"
+
+[dependencies]
+image = "0.24"
+raw-window-handle = "0.5"
+winit = "0.28.0"
+# The examples require the validation layers, which means the SDK or
+# equivalent development packages should be present, so we can link
+# directly and benefit from the infallible `Entry` constructor.
+ash = { git = "https://github.com/ash-rs/ash", features = ["linked"] }
+ash-window = { git = "https://github.com/ash-rs/ash" }
