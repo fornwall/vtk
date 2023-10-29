@@ -27,7 +27,7 @@ use winit::{
     window::WindowBuilder,
 };
 
-// Simple offset_of macro akin to C++ offsetof
+/// Simple offset_of macro akin to C++ offsetof
 #[macro_export]
 macro_rules! offset_of {
     ($base:path, $field:ident) => {{
@@ -350,13 +350,7 @@ impl ExampleBase {
                 .get_physical_device_surface_capabilities(pdevice, surface)
                 .unwrap();
 
-            let mut desired_image_count = surface_capabilities.min_image_count + 1;
-
-            if surface_capabilities.max_image_count > 0
-                && desired_image_count > surface_capabilities.max_image_count
-            {
-                desired_image_count = surface_capabilities.max_image_count;
-            }
+            let desired_image_count = surface_capabilities.min_image_count;
 
             let surface_resolution = match surface_capabilities.current_extent.width {
                 std::u32::MAX => vk::Extent2D {

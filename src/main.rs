@@ -16,6 +16,7 @@ struct Vertex {
 fn main() {
     unsafe {
         let base = vulkan_example::ExampleBase::new(1920, 1080);
+
         let renderpass_attachments = [
             vk::AttachmentDescription {
                 format: base.surface_format.format,
@@ -34,14 +35,17 @@ fn main() {
                 ..Default::default()
             },
         ];
+
         let color_attachment_refs = [vk::AttachmentReference {
             attachment: 0,
             layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
         }];
+
         let depth_attachment_ref = vk::AttachmentReference {
             attachment: 1,
             layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         };
+
         let dependencies = [vk::SubpassDependency {
             src_subpass: vk::SUBPASS_EXTERNAL,
             src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
@@ -104,10 +108,12 @@ fn main() {
             memory_type_index: index_buffer_memory_index,
             ..Default::default()
         };
+
         let index_buffer_memory = base
             .device
             .allocate_memory(&index_allocate_info, None)
             .unwrap();
+
         let index_ptr = base
             .device
             .map_memory(
@@ -117,11 +123,13 @@ fn main() {
                 vk::MemoryMapFlags::empty(),
             )
             .unwrap();
+
         let mut index_slice = Align::new(
             index_ptr,
             align_of::<u32>() as u64,
             index_buffer_memory_req.size,
         );
+
         index_slice.copy_from_slice(&index_buffer_data);
         base.device.unmap_memory(index_buffer_memory);
         base.device
@@ -264,10 +272,12 @@ fn main() {
         let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo::default()
             .vertex_attribute_descriptions(&vertex_input_attribute_descriptions)
             .vertex_binding_descriptions(&vertex_input_binding_descriptions);
+
         let vertex_input_assembly_state_info = vk::PipelineInputAssemblyStateCreateInfo {
             topology: vk::PrimitiveTopology::TRIANGLE_LIST,
             ..Default::default()
         };
+
         let viewports = [vk::Viewport {
             x: 0.0,
             y: 0.0,
@@ -276,6 +286,7 @@ fn main() {
             min_depth: 0.0,
             max_depth: 1.0,
         }];
+
         let scissors = [base.surface_resolution.into()];
         let viewport_state_info = vk::PipelineViewportStateCreateInfo::default()
             .scissors(&scissors)
@@ -287,10 +298,12 @@ fn main() {
             polygon_mode: vk::PolygonMode::FILL,
             ..Default::default()
         };
+
         let multisample_state_info = vk::PipelineMultisampleStateCreateInfo {
             rasterization_samples: vk::SampleCountFlags::TYPE_1,
             ..Default::default()
         };
+
         let noop_stencil_state = vk::StencilOpState {
             fail_op: vk::StencilOp::KEEP,
             pass_op: vk::StencilOp::KEEP,
@@ -298,6 +311,7 @@ fn main() {
             compare_op: vk::CompareOp::ALWAYS,
             ..Default::default()
         };
+
         let depth_state_info = vk::PipelineDepthStencilStateCreateInfo {
             depth_test_enable: 1,
             depth_write_enable: 1,
@@ -307,6 +321,7 @@ fn main() {
             max_depth_bounds: 1.0,
             ..Default::default()
         };
+
         let color_blend_attachment_states = [vk::PipelineColorBlendAttachmentState {
             blend_enable: 0,
             src_color_blend_factor: vk::BlendFactor::SRC_COLOR,
@@ -317,6 +332,7 @@ fn main() {
             alpha_blend_op: vk::BlendOp::ADD,
             color_write_mask: vk::ColorComponentFlags::RGBA,
         }];
+
         let color_blend_state = vk::PipelineColorBlendStateCreateInfo::default()
             .logic_op(vk::LogicOp::CLEAR)
             .attachments(&color_blend_attachment_states);
@@ -421,6 +437,7 @@ fn main() {
                     device.cmd_end_render_pass(draw_command_buffer);
                 },
             );
+
             //let mut present_info_err = mem::zeroed();
             let wait_semaphors = [base.rendering_complete_semaphore];
             let swapchains = [base.swapchain];
