@@ -2,3 +2,5 @@ target
 Cargo.lock
 !examples/Cargo.lock
 .idea
+*.swo
+*.swp
