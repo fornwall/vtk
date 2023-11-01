@@ -7,11 +7,7 @@ Create a triangle and draw it to the screen
 The `vkCreateAndroidSurfaceKHRfunction is implemented as
 
 ```c++
-VkResult CreateAndroidSurfaceKHR(
-    VkInstance instance,
-    const VkAndroidSurfaceCreateInfoKHR* pCreateInfo,
-    const VkAllocationCallbacks* allocator,
-    VkSurfaceKHR* out_surface) {
+VkResult CreateAndroidSurfaceKHR(VkInstance instance, VkAndroidSurfaceCreateInfoKHR* pCreateInfo, VkAllocationCallbacks* allocator, VkSurfaceKHR* out_surface) {
     if (!allocator) allocator = &GetData(instance).allocator;
     void* mem = allocator->pfnAllocation(allocator->pUserData, sizeof(Surface), alignof(Surface), VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
     Surface* surface = new (mem) Surface;
