@@ -5,10 +5,6 @@
         <activity android:name=".MainActivity"
                 android:configChanges="orientation|keyboardHidden"
                 android:exported="true">
-            <!-- Tell GameActivity the name of our .so file.
-                 This will be optional after the release 1.1.0 -->
-            <meta-data android:name="android.app.lib_name"
-                    android:value="vktuts" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -17,4 +13,3 @@
     </application>
 
 </manifest>
-<!-- END_INCLUDE(manifest) -->

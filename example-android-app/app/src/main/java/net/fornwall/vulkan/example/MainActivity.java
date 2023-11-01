@@ -1,6 +1,7 @@
-package com.android.example.vulkan.tutorials.five;
+package net.fornwall.vulkan.example;
 
 import com.google.androidgamesdk.GameActivity;
+
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
@@ -14,6 +15,7 @@ public class MainActivity extends GameActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         int visibilityFlags = View.SYSTEM_UI_FLAG_FULLSCREEN |
@@ -23,4 +25,5 @@ public class MainActivity extends GameActivity {
     }
 
 }
+
 

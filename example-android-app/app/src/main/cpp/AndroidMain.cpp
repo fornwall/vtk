@@ -1,20 +1,16 @@
 #include <android/log.h>
 #include "VulkanMain.hpp"
 
-// Process the next main command.
 void handle_cmd(android_app* app, int32_t cmd) {
   switch (cmd) {
     case APP_CMD_INIT_WINDOW:
-      // The window is being shown, get it ready.
-      InitVulkan(app);
+      init_window(app);
       break;
     case APP_CMD_TERM_WINDOW:
-      // The window is being hidden or closed, clean it up.
-      DeleteVulkan();
+      terminate_window();
       break;
     default:
-      __android_log_print(ANDROID_LOG_INFO, "Vulkan Tutorials",
-                          "event not handled: %d", cmd);
+      __android_log_print(ANDROID_LOG_INFO, "Vulkan Tutorials", "event not handled: %d", cmd);
   }
 }
 
@@ -30,6 +26,6 @@ void android_main(struct android_app* app) {
       if (source != nullptr) source->process(app, source);
     }
 
-    if (IsVulkanReady()) VulkanDrawFrame();
+    if (IsVulkanReady()) draw_frame();
   } while (app->destroyRequested == 0);
 }

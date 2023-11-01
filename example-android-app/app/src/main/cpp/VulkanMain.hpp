@@ -4,16 +4,16 @@
 #include <game-activity/native_app_glue/android_native_app_glue.h>
 
 // Initialize vulkan device context. After return, vulkan is ready to draw
-bool InitVulkan(android_app* app);
+bool init_window(android_app* app);
 
 // delete vulkan device context when application goes away
-void DeleteVulkan(void);
+void terminate_window(void);
 
 // Check if vulkan is ready to draw
 bool IsVulkanReady(void);
 
 // Ask Vulkan to Render a frame
-bool VulkanDrawFrame(void);
+bool draw_frame(void);
 
 #endif
 
