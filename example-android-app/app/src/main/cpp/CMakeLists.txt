@@ -9,7 +9,7 @@ get_filename_component(REPO_ROOT_DIR ${CMAKE_SOURCE_DIR}/../../../../..  ABSOLUT
 set(COMMON_DIR ${REPO_ROOT_DIR}/common)
 
 add_library(${CMAKE_PROJECT_NAME} SHARED
-    VulkanMain.cpp
+        vulkan_main.cpp
     vulkan_wrapper.cpp
     AndroidMain.cpp
     GameActivitySources.cpp)

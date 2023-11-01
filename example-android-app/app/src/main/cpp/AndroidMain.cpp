@@ -1,5 +1,5 @@
 #include <android/log.h>
-#include "VulkanMain.hpp"
+#include "vulkan_main.h"
 
 void handle_cmd(android_app* app, int32_t cmd) {
   switch (cmd) {
@@ -22,10 +22,10 @@ void android_main(struct android_app* app) {
     int events;
     android_poll_source* source;
 
-    if (ALooper_pollAll(IsVulkanReady() ? 1 : 0, nullptr, &events, (void**)&source) >= 0) {
+    if (ALooper_pollAll(is_vulkan_ready() ? 1 : 0, nullptr, &events, (void**)&source) >= 0) {
       if (source != nullptr) source->process(app, source);
     }
 
-    if (IsVulkanReady()) draw_frame();
+    if (is_vulkan_ready()) draw_frame();
   } while (app->destroyRequested == 0);
 }
