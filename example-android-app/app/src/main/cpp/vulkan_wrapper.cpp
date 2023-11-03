@@ -1,10 +1,10 @@
 #include "vulkan_wrapper.h"
 #include <dlfcn.h>
 
-int load_vulkan_symbols(void) {
+bool load_vulkan_symbols() {
     void *libvulkan = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
     if (!libvulkan) {
-        return 0;
+        return false;
     }
 
     // Vulkan supported, set function addresses
@@ -217,7 +217,7 @@ int load_vulkan_symbols(void) {
     vkDestroyDebugReportCallbackEXT = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(dlsym(libvulkan, "vkDestroyDebugReportCallbackEXT"));
     vkDebugReportMessageEXT = reinterpret_cast<PFN_vkDebugReportMessageEXT>(dlsym(libvulkan, "vkDebugReportMessageEXT"));
 #endif
-    return 1;
+    return true;
 }
 
 // No Vulkan support, do not set function addresses
