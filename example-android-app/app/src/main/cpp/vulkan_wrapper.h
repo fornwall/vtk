@@ -1,13 +1,29 @@
 #ifndef VULKAN_WRAPPER_H
 #define VULKAN_WRAPPER_H
 
+#include <stdbool.h>
+
+#ifdef __ANDROID__
+# define VK_USE_PLATFORM_ANDROID_KHR
+#endif
+
 #define VK_NO_PROTOTYPES 1
 #include <vulkan/vulkan.h>
 
-/* Initialize the Vulkan function pointer variables declared in this header.
- * Returns 0 if vulkan is not available, non-zero if it is available.
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * Initialize the Vulkan function pointer variables declared in this header.
+ * Returns false if vulkan is not available.
  */
 bool load_vulkan_symbols();
+
+#ifdef __cplusplus
+}
+#endif
+
 
 // VK_core
 extern PFN_vkCreateInstance vkCreateInstance;
@@ -216,6 +232,5 @@ extern PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT;
 extern PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT;
 extern PFN_vkDebugReportMessageEXT vkDebugReportMessageEXT;
 #endif
-
 
 #endif // VULKAN_WRAPPER_H
