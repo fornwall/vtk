@@ -3,9 +3,9 @@
 
 #include <android/log.h>
 
-#include <cassert>
-#include <cstring>
-#include <vector>
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 
 // Android log function wrappers
 static const char *kTAG = "Vulkan-Tutorial05";
@@ -37,7 +37,7 @@ struct VulkanDeviceInfo {
     VkQueue vk_queue;
 };
 
-VulkanDeviceInfo device;
+struct VulkanDeviceInfo device;
 
 struct VulkanSwapchainInfo {
     VkSwapchainKHR vk_swapchain;
@@ -52,13 +52,13 @@ struct VulkanSwapchainInfo {
     VkFramebuffer *vk_framebuffers;
 };
 
-VulkanSwapchainInfo swapchain;
+struct VulkanSwapchainInfo swapchain;
 
 struct VulkanBufferInfo {
     VkBuffer vk_buffer;
 };
 
-VulkanBufferInfo buffers;
+struct VulkanBufferInfo buffers;
 
 struct VulkanGfxPipelineInfo {
     VkPipelineLayout vk_pipeline_layout;
@@ -66,7 +66,7 @@ struct VulkanGfxPipelineInfo {
     VkPipeline vk_pipeline;
 };
 
-VulkanGfxPipelineInfo gfxPipeline;
+struct VulkanGfxPipelineInfo gfxPipeline;
 
 struct VulkanRenderInfo {
     VkRenderPass vk_render_pass;
@@ -77,9 +77,9 @@ struct VulkanRenderInfo {
     VkFence vk_fence;
 };
 
-VulkanRenderInfo render;
+struct VulkanRenderInfo render;
 
-android_app *androidAppCtx = NULL;
+struct android_app *androidAppCtx = NULL;
 
 /*
  * set_image_layout():
@@ -140,8 +140,8 @@ void create_vulkan_device(ANativeWindow *native_window, VkApplicationInfo *appIn
     uint32_t queueFamilyCount;
     vkGetPhysicalDeviceQueueFamilyProperties(device.vk_physical_device, &queueFamilyCount, NULL);
     assert(queueFamilyCount);
-    std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(device.vk_physical_device, &queueFamilyCount, queueFamilyProperties.data());
+    VkQueueFamilyProperties* queueFamilyProperties = malloc(sizeof(VkQueueFamilyProperties) * queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device.vk_physical_device, &queueFamilyCount, queueFamilyProperties);
 
     uint32_t queue_family_idx;
     for (queue_family_idx = 0; queue_family_idx < queueFamilyCount; queue_family_idx++) {
@@ -149,6 +149,7 @@ void create_vulkan_device(ANativeWindow *native_window, VkApplicationInfo *appIn
             break;
         }
     }
+    free(queueFamilyProperties);
     assert(queue_family_idx < queueFamilyCount);
     device.queueFamilyIndex_ = queue_family_idx;
 
@@ -191,7 +192,7 @@ void create_swap_chain() {
 
     uint32_t format_count = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device.vk_physical_device, device.vk_surface, &format_count, NULL);
-    VkSurfaceFormatKHR *formats = new VkSurfaceFormatKHR[format_count];
+    VkSurfaceFormatKHR *formats = (VkSurfaceFormatKHR*) malloc(sizeof(VkSurfaceFormatKHR) * format_count);
     vkGetPhysicalDeviceSurfaceFormatsKHR(device.vk_physical_device, device.vk_surface, &format_count, formats);
     LOGI("Got %d formats", format_count);
 
@@ -264,7 +265,7 @@ void create_swap_chain() {
         CALL_VK(vkCreateImageView(device.vk_device, &viewCreateInfo, NULL, &swapchain.vk_image_views[i]));
     }
 
-    delete[] formats;
+    free(formats);
 }
 
 void delete_swap_chain() {
@@ -279,7 +280,8 @@ void delete_swap_chain() {
     free(swapchain.vk_framebuffers);
 }
 
-void create_frame_buffers(VkRenderPass &renderPass, VkImageView depthView = VK_NULL_HANDLE) {
+void create_frame_buffers(VkRenderPass renderPass) {
+    VkImageView depthView = VK_NULL_HANDLE;
     // create a framebuffer from each swapchain image
     swapchain.vk_framebuffers = (VkFramebuffer *) malloc(sizeof(VkFramebuffer) * swapchain.swap_chain_length);
     for (uint32_t i = 0; i < swapchain.swap_chain_length; i++) {
@@ -287,14 +289,14 @@ void create_frame_buffers(VkRenderPass &renderPass, VkImageView depthView = VK_N
                 swapchain.vk_image_views[i],
                 depthView,
         };
-        VkFramebufferCreateInfo fbCreateInfo{
+        VkFramebufferCreateInfo fbCreateInfo = {
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
                 .pNext = NULL,
                 .renderPass = renderPass,
                 .attachmentCount = 1,  // 2 if using depth
                 .pAttachments = attachments,
-                .width = static_cast<uint32_t>(swapchain.vk_extend_2d.width),
-                .height = static_cast<uint32_t>(swapchain.vk_extend_2d.height),
+                .width = (uint32_t) swapchain.vk_extend_2d.width,
+                .height = (uint32_t) swapchain.vk_extend_2d.height,
                 .layers = 1,
         };
         fbCreateInfo.attachmentCount = (depthView == VK_NULL_HANDLE ? 1 : 2);
@@ -352,7 +354,7 @@ bool CreateBuffers() {
     VkMemoryRequirements memReq;
     vkGetBufferMemoryRequirements(device.vk_device, buffers.vk_buffer, &memReq);
 
-    VkMemoryAllocateInfo allocInfo{
+    VkMemoryAllocateInfo allocInfo = {
             .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
             .pNext = NULL,
             .allocationSize = memReq.size,
@@ -394,12 +396,12 @@ VkResult loadShaderFromFile(const char *filePath, VkShaderModule *shaderOut) {
     AAsset *file = AAssetManager_open(androidAppCtx->activity->assetManager, filePath, AASSET_MODE_BUFFER);
     size_t fileLength = AAsset_getLength(file);
 
-    char *fileContent = new char[fileLength];
+    char *fileContent = malloc(fileLength);
 
     AAsset_read(file, fileContent, fileLength);
     AAsset_close(file);
 
-    VkShaderModuleCreateInfo shaderModuleCreateInfo{
+    VkShaderModuleCreateInfo shaderModuleCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             .pNext = NULL,
             .flags = 0,
@@ -409,7 +411,7 @@ VkResult loadShaderFromFile(const char *filePath, VkShaderModule *shaderOut) {
     VkResult result = vkCreateShaderModule(device.vk_device, &shaderModuleCreateInfo, NULL, shaderOut);
     assert(result == VK_SUCCESS);
 
-    delete[] fileContent;
+    free(fileContent);
 
     return result;
 }
@@ -417,7 +419,7 @@ VkResult loadShaderFromFile(const char *filePath, VkShaderModule *shaderOut) {
 VkResult CreateGraphicsPipeline() {
     memset(&gfxPipeline, 0, sizeof(gfxPipeline));
     // Create pipeline layout (empty)
-    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .pNext = NULL,
             .setLayoutCount = 0,
@@ -452,7 +454,7 @@ VkResult CreateGraphicsPipeline() {
                     .pSpecializationInfo = NULL,
             }};
 
-    VkViewport viewports{
+    VkViewport viewports = {
             .x = 0,
             .y = 0,
             .width = (float) swapchain.vk_extend_2d.width,
@@ -462,11 +464,11 @@ VkResult CreateGraphicsPipeline() {
     };
 
     VkRect2D scissor = {
-            .offset {.x = 0, .y = 0,},
+            .offset = { .x = 0, .y = 0},
             .extent = swapchain.vk_extend_2d,
     };
     // Specify viewport info
-    VkPipelineViewportStateCreateInfo viewportInfo{
+    VkPipelineViewportStateCreateInfo viewportInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
             .pNext = NULL,
             .viewportCount = 1,
@@ -477,7 +479,7 @@ VkResult CreateGraphicsPipeline() {
 
     // Specify multisample info
     VkSampleMask sampleMask = ~0u;
-    VkPipelineMultisampleStateCreateInfo multisampleInfo{
+    VkPipelineMultisampleStateCreateInfo multisampleInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
             .pNext = NULL,
             .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
@@ -489,12 +491,12 @@ VkResult CreateGraphicsPipeline() {
     };
 
     // Specify color blend state
-    VkPipelineColorBlendAttachmentState attachmentStates{
+    VkPipelineColorBlendAttachmentState attachmentStates = {
             .blendEnable = VK_FALSE,
             .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
                               VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
     };
-    VkPipelineColorBlendStateCreateInfo colorBlendInfo{
+    VkPipelineColorBlendStateCreateInfo colorBlendInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
             .pNext = NULL,
             .flags = 0,
@@ -505,7 +507,7 @@ VkResult CreateGraphicsPipeline() {
     };
 
     // Specify rasterizer info
-    VkPipelineRasterizationStateCreateInfo rasterInfo{
+    VkPipelineRasterizationStateCreateInfo rasterInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
             .pNext = NULL,
             .depthClampEnable = VK_FALSE,
@@ -518,7 +520,7 @@ VkResult CreateGraphicsPipeline() {
     };
 
     // Specify input assembler state
-    VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{
+    VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
             .pNext = NULL,
             .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
@@ -526,7 +528,7 @@ VkResult CreateGraphicsPipeline() {
     };
 
     // Specify vertex input state
-    VkVertexInputBindingDescription vertex_input_bindings{
+    VkVertexInputBindingDescription vertex_input_bindings = {
             .binding = 0,
             .stride = 3 * sizeof(float),
             .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
@@ -541,7 +543,7 @@ VkResult CreateGraphicsPipeline() {
             }
     };
 
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo{
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             .pNext = NULL,
             .vertexBindingDescriptionCount = 1,
@@ -551,7 +553,7 @@ VkResult CreateGraphicsPipeline() {
     };
 
     // Create the pipeline cache
-    VkPipelineCacheCreateInfo pipelineCacheInfo{
+    VkPipelineCacheCreateInfo pipelineCacheInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
             .pNext = NULL,
             .flags = 0,  // reserved, must be 0
@@ -562,7 +564,7 @@ VkResult CreateGraphicsPipeline() {
     CALL_VK(vkCreatePipelineCache(device.vk_device, &pipelineCacheInfo, NULL, &gfxPipeline.vk_pipeline_cache));
 
     // Create the pipeline
-    VkGraphicsPipelineCreateInfo pipelineCreateInfo{
+    VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             .pNext = NULL,
             .flags = 0,
@@ -605,7 +607,7 @@ void delete_graphics_pipeline(void) {
 // init_window:
 //   Initialize Vulkan Context when android application window is created
 //   upon return, vulkan is ready to draw frames
-bool init_window(android_app *app) {
+bool init_window(struct android_app *app) {
     androidAppCtx = app;
 
     if (!load_vulkan_symbols()) {
@@ -643,7 +645,7 @@ bool init_window(android_app *app) {
             .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     };
 
-    VkSubpassDescription subpassDescription{
+    VkSubpassDescription subpassDescription = {
             .flags = 0,
             .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
             .inputAttachmentCount = 0,
@@ -656,7 +658,7 @@ bool init_window(android_app *app) {
             .pPreserveAttachments = NULL,
     };
 
-    VkRenderPassCreateInfo renderPassCreateInfo{
+    VkRenderPassCreateInfo renderPassCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
             .pNext = NULL,
             .attachmentCount = 1,
@@ -676,7 +678,7 @@ bool init_window(android_app *app) {
 
     // -----------------------------------------------
     // Create a pool of command buffers to allocate command buffer from
-    VkCommandPoolCreateInfo cmdPoolCreateInfo{
+    VkCommandPoolCreateInfo cmdPoolCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
             .pNext = NULL,
             .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
@@ -688,8 +690,8 @@ bool init_window(android_app *app) {
     // 1 command buffer draw in 1 framebuffer
     // In our case we need 2 command as we have 2 framebuffer
     render.command_buffer_len = swapchain.swap_chain_length;
-    render.vk_command_buffer = new VkCommandBuffer[swapchain.swap_chain_length];
-    VkCommandBufferAllocateInfo cmdBufferCreateInfo{
+    render.vk_command_buffer = (VkCommandBuffer*) malloc(sizeof(VkCommandBuffer) * swapchain.swap_chain_length);
+    VkCommandBufferAllocateInfo cmdBufferCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             .pNext = NULL,
             .commandPool = render.vk_command_pool,
@@ -700,7 +702,7 @@ bool init_window(android_app *app) {
 
     for (uint32_t bufferIndex = 0; bufferIndex < swapchain.swap_chain_length; bufferIndex++) {
         // We start by creating and declare the "beginning" our command buffer
-        VkCommandBufferBeginInfo cmdBufferBeginInfo{
+        VkCommandBufferBeginInfo cmdBufferBeginInfo = {
                 .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                 .pNext = NULL,
                 .flags = 0,
@@ -717,13 +719,13 @@ bool init_window(android_app *app) {
 
         // Now we start a renderpass. Any draw command has to be recorded in a
         // renderpass
-        VkClearValue clearVals = {.color {.float32 {0.0f, 0.34f, 0.90f, 1.0f}}};
-        VkRenderPassBeginInfo renderPassBeginInfo{
+        VkClearValue clearVals = {.color = {.float32 = {0.0f, 0.34f, 0.90f, 1.0f}}};
+        VkRenderPassBeginInfo renderPassBeginInfo = {
                 .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
                 .pNext = NULL,
                 .renderPass = render.vk_render_pass,
                 .framebuffer = swapchain.vk_framebuffers[bufferIndex],
-                .renderArea = {.offset {.x = 0, .y = 0,},
+                .renderArea = {.offset = {.x = 0, .y = 0,},
                         .extent = swapchain.vk_extend_2d},
                 .clearValueCount = 1,
                 .pClearValues = &clearVals};
@@ -745,7 +747,7 @@ bool init_window(android_app *app) {
 
     // We need to create a fence to be able, in the main loop, to wait for our
     // draw command(s) to finish before swapping the framebuffers
-    VkFenceCreateInfo fenceCreateInfo{
+    VkFenceCreateInfo fenceCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
             .pNext = NULL,
             .flags = VK_FENCE_CREATE_SIGNALED_BIT,
@@ -754,7 +756,7 @@ bool init_window(android_app *app) {
 
     // We need to create a semaphore to be able to wait, in the main loop, for our
     // framebuffer to be available for us before drawing.
-    VkSemaphoreCreateInfo semaphoreCreateInfo{
+    VkSemaphoreCreateInfo semaphoreCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
             .pNext = NULL,
             .flags = 0,
@@ -771,7 +773,7 @@ bool is_vulkan_ready() {
 
 void terminate_window() {
     vkFreeCommandBuffers(device.vk_device, render.vk_command_pool, render.command_buffer_len, render.vk_command_buffer);
-    delete[] render.vk_command_buffer;
+    free(render.vk_command_buffer);
 
     vkDestroyCommandPool(device.vk_device, render.vk_command_pool, NULL);
     vkDestroyRenderPass(device.vk_device, render.vk_render_pass, NULL);

@@ -13,9 +13,9 @@ add_compile_options(
         "$<$<CONFIG:DEBUG>:-DENABLE_VULKAN_VALIDATION_LAYERS>")
 
 add_library(${CMAKE_PROJECT_NAME} SHARED
-        vulkan_main.cpp
+        vulkan_main.c
         vulkan_wrapper.c
-    AndroidMain.cpp
+        android_main.c
     GameActivitySources.cpp)
 
 include_directories(${COMMON_DIR}/vulkan_wrapper)

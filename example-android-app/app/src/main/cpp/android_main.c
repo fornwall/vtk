@@ -1,7 +1,7 @@
 #include <android/log.h>
 #include "vulkan_main.h"
 
-void handle_cmd(android_app* app, int32_t cmd) {
+void handle_cmd(struct android_app* app, int32_t cmd) {
   switch (cmd) {
     case APP_CMD_INIT_WINDOW:
       init_window(app);
@@ -20,10 +20,10 @@ void android_main(struct android_app* app) {
 
   do {
     int events;
-    android_poll_source* source;
+    struct android_poll_source* source;
 
-    if (ALooper_pollAll(is_vulkan_ready() ? 1 : 0, nullptr, &events, (void**)&source) >= 0) {
-      if (source != nullptr) source->process(app, source);
+    if (ALooper_pollAll(is_vulkan_ready() ? 1 : 0, NULL, &events, (void**)&source) >= 0) {
+      if (source != NULL) source->process(app, source);
     }
 
     if (is_vulkan_ready()) draw_frame();
