@@ -8,6 +8,10 @@ find_package(game-activity REQUIRED CONFIG)
 get_filename_component(REPO_ROOT_DIR ${CMAKE_SOURCE_DIR}/../../../../..  ABSOLUTE)
 set(COMMON_DIR ${REPO_ROOT_DIR}/common)
 
+add_compile_options(
+        "-Wall" "-Wextra" "-Werror"
+        "$<$<CONFIG:DEBUG>:-DENABLE_VULKAN_VALIDATION_LAYERS>")
+
 add_library(${CMAKE_PROJECT_NAME} SHARED
         vulkan_main.cpp
         vulkan_wrapper.c

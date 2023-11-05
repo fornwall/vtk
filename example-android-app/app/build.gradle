@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'net.fornwall.android-vulkan-validation'
 
 android {
     namespace "net.fornwall.vulkan.example"
@@ -22,7 +23,8 @@ android {
         }
         externalNativeBuild {
             cmake {
-                abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+                // abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+                abiFilters 'arm64-v8a'
                 arguments '-DANDROID_TOOLCHAIN=clang', '-DANDROID_STL=c++_static'
             }
         }

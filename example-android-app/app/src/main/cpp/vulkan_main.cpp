@@ -71,7 +71,7 @@ VulkanGfxPipelineInfo gfxPipeline;
 struct VulkanRenderInfo {
     VkRenderPass vk_render_pass;
     VkCommandPool vk_command_pool;
-    VkCommandBuffer* vk_command_buffer;
+    VkCommandBuffer *vk_command_buffer;
     uint32_t command_buffer_len;
     VkSemaphore vk_semaphore;
     VkFence vk_fence;
@@ -98,12 +98,18 @@ void create_vulkan_device(ANativeWindow *native_window, VkApplicationInfo *appIn
 #endif
     };
 
+    char const *enabledLayerNames[] = {
+#ifdef ENABLE_VULKAN_VALIDATION_LAYERS
+            "VK_LAYER_KHRONOS_validation"
+#endif
+    };
+
     VkInstanceCreateInfo instance_create_info = {
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pNext = nullptr,
             .pApplicationInfo = appInfo,
-            .enabledLayerCount = 0,
-            .ppEnabledLayerNames = nullptr,
+            .enabledLayerCount = sizeof(enabledLayerNames) / sizeof(enabledLayerNames[0]),
+            .ppEnabledLayerNames = enabledLayerNames,
             .enabledExtensionCount = sizeof(instance_extensions) / sizeof(instance_extensions[0]),
             .ppEnabledExtensionNames = instance_extensions,
     };
@@ -157,7 +163,7 @@ void create_vulkan_device(ANativeWindow *native_window, VkApplicationInfo *appIn
             .pQueuePriorities = priorities,
     };
 
-    char const* device_extensions[] = {
+    char const *device_extensions[] = {
             "VK_KHR_swapchain"
     };
 
@@ -185,7 +191,7 @@ void create_swap_chain() {
 
     uint32_t format_count = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device.vk_physical_device, device.vk_surface, &format_count, nullptr);
-    VkSurfaceFormatKHR* formats = new VkSurfaceFormatKHR[format_count];
+    VkSurfaceFormatKHR *formats = new VkSurfaceFormatKHR[format_count];
     vkGetPhysicalDeviceSurfaceFormatsKHR(device.vk_physical_device, device.vk_surface, &format_count, formats);
     LOGI("Got %d formats", format_count);
 
@@ -262,7 +268,7 @@ void create_swap_chain() {
 }
 
 void delete_swap_chain() {
-    for (int i = 0; i < swapchain.swap_chain_length; i++) {
+    for (uint32_t i = 0; i < swapchain.swap_chain_length; i++) {
         vkDestroyFramebuffer(device.vk_device, swapchain.vk_framebuffers[i], nullptr);
         vkDestroyImageView(device.vk_device, swapchain.vk_image_views[i], nullptr);
     }
@@ -382,7 +388,7 @@ enum ShaderType {
     VERTEX_SHADER, FRAGMENT_SHADER
 };
 
-VkResult loadShaderFromFile(const char *filePath, VkShaderModule *shaderOut, ShaderType type) {
+VkResult loadShaderFromFile(const char *filePath, VkShaderModule *shaderOut) {
     // Read the file
     assert(androidAppCtx);
     AAsset *file = AAssetManager_open(androidAppCtx->activity->assetManager, filePath, AASSET_MODE_BUFFER);
@@ -422,8 +428,8 @@ VkResult CreateGraphicsPipeline() {
     CALL_VK(vkCreatePipelineLayout(device.vk_device, &pipelineLayoutCreateInfo, nullptr, &gfxPipeline.vk_pipeline_layout));
 
     VkShaderModule vertexShader, fragmentShader;
-    loadShaderFromFile("shaders/tri.vert.spv", &vertexShader, VERTEX_SHADER);
-    loadShaderFromFile("shaders/tri.frag.spv", &fragmentShader, FRAGMENT_SHADER);
+    loadShaderFromFile("shaders/tri.vert.spv", &vertexShader);
+    loadShaderFromFile("shaders/tri.frag.spv", &fragmentShader);
 
     // Specify vertex and fragment shader stages
     VkPipelineShaderStageCreateInfo shaderStages[] = {
@@ -692,7 +698,7 @@ bool init_window(android_app *app) {
     };
     CALL_VK(vkAllocateCommandBuffers(device.vk_device, &cmdBufferCreateInfo, render.vk_command_buffer));
 
-    for (int bufferIndex = 0; bufferIndex < swapchain.swap_chain_length; bufferIndex++) {
+    for (uint32_t bufferIndex = 0; bufferIndex < swapchain.swap_chain_length; bufferIndex++) {
         // We start by creating and declare the "beginning" our command buffer
         VkCommandBufferBeginInfo cmdBufferBeginInfo{
                 .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,

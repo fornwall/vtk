@@ -5,6 +5,7 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.1.2'
+        classpath files('/Users/fornwall/src/android-vulkan-validation/build/libs/android-vulkan-validation.jar')
     }
 }
 
@@ -13,6 +14,7 @@ allprojects {
         google()
         mavenCentral()
     }
+
 }
 
 task clean(type: Delete) {
