@@ -7,23 +7,36 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Android log function wrappers
-static const char *kTAG = "Vulkan-Tutorial05";
-#define LOGI(...) \
+#ifdef __ANDROID__
+static const char *kTAG = "vulkan-example";
+# define LOGI(...) \
   ((void)__android_log_print(ANDROID_LOG_INFO, kTAG, __VA_ARGS__))
-#define LOGW(...) \
+# define LOGW(...) \
   ((void)__android_log_print(ANDROID_LOG_WARN, kTAG, __VA_ARGS__))
-#define LOGE(...) \
+# define LOGE(...) \
   ((void)__android_log_print(ANDROID_LOG_ERROR, kTAG, __VA_ARGS__))
-
-// Vulkan call wrapper
-#define CALL_VK(func)                                                 \
+# define CALL_VK(func)                                                 \
   if (VK_SUCCESS != (func)) {                                         \
     __android_log_print(ANDROID_LOG_ERROR, "Tutorial ",               \
                         "Vulkan error. File[%s], line[%d]", __FILE__, \
                         __LINE__);                                    \
     assert(false);                                                    \
   }
+#else
+# define LOGI(...) \
+  ((void)fprintf(stderr, "[info] %s\n", __VA_ARGS__))
+# define LOGW(...) \
+  ((void)fprintf(stderr, "[warn] %s\n", __VA_ARGS__))
+# define LOGE(...) \
+  ((void)fprintf(stderr, "[error] %s\n", __VA_ARGS__))
+# define CALL_VK(func)                                                   \
+  if (VK_SUCCESS != (func)) {                                            \
+    fpintf(stderr, "[error] Vulkan error. File[%s], line[%d]", __FILE__, \
+                        __LINE__);                                       \
+    assert(false);                                                       \
+  }
+#endif
+
 
 struct VulkanDeviceInfo {
     bool initialized_;
@@ -95,6 +108,10 @@ void create_vulkan_device(ANativeWindow *native_window, VkApplicationInfo *appIn
             "VK_KHR_surface",
 #ifdef __ANDROID__
             "VK_KHR_android_surface",
+#elif defined __APPLE__
+                "VK_MVK_macos_surface",
+#else
+                "VK_KHR_wayland_surface",
 #endif
     };
 

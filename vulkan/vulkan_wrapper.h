@@ -5,11 +5,15 @@
 
 #ifdef __ANDROID__
 # define VK_USE_PLATFORM_ANDROID_KHR
+# define VK_NO_PROTOTYPES 1
+#elif defined __APPLE__
+# define VK_USE_PLATFORM_MACOS_MVK
+# define VK_USE_PLATFORM_METAL_EXT
 #endif
 
-#define VK_NO_PROTOTYPES 1
 #include <vulkan/vulkan.h>
 
+#ifdef __ANDROID__
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -232,5 +236,7 @@ extern PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT;
 extern PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT;
 extern PFN_vkDebugReportMessageEXT vkDebugReportMessageEXT;
 #endif
+
+#endif // __ANDROID__
 
 #endif // VULKAN_WRAPPER_H
