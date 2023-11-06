@@ -103,7 +103,13 @@ void set_image_layout(VkCommandBuffer cmdBuffer, VkImage image,
                       VkPipelineStageFlags srcStages,
                       VkPipelineStageFlags destStages);
 
-void create_vulkan_device(ANativeWindow *native_window, VkApplicationInfo *appInfo) {
+void create_vulkan_device(
+#ifdef __ANDROID__
+        ANativeWindow *native_window,
+#elif defined __APPLE__
+        const CAMetalLayer* metal_layer,
+#endif
+        VkApplicationInfo *appInfo) {
     const char *instance_extensions[] = {
             "VK_KHR_surface",
 #ifdef __ANDROID__
@@ -142,6 +148,15 @@ void create_vulkan_device(ANativeWindow *native_window, VkApplicationInfo *appIn
     };
 
     CALL_VK(vkCreateAndroidSurfaceKHR(device.vk_instance, &surface_create_info, NULL, &device.vk_surface));
+#elif defined __APPLE__
+    VkMetalSurfaceCreateInfoEXT surface_create_info = {
+            .sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT,
+            .pNext = NULL,
+            .flags = 0,
+            .pLayer = metal_layer
+    };
+
+    CALL_VK(vkCreateMetalSurfaceEXT(device.vk_instance, &surface_create_info, NULL, &device.vk_surface));
 #else
 # error Unsupported platform
 #endif
