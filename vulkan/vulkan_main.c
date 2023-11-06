@@ -407,8 +407,7 @@ enum ShaderType {
     VERTEX_SHADER, FRAGMENT_SHADER
 };
 
-VkResult loadShaderFromFile(const char *filePath, VkShaderModule *shaderOut) {
-    // Read the file
+void loadShaderFromFile(const char *filePath, VkShaderModule *shaderOut) {
     assert(androidAppCtx);
     AAsset *file = AAssetManager_open(androidAppCtx->activity->assetManager, filePath, AASSET_MODE_BUFFER);
     size_t fileLength = AAsset_getLength(file);
@@ -425,12 +424,9 @@ VkResult loadShaderFromFile(const char *filePath, VkShaderModule *shaderOut) {
             .codeSize = fileLength,
             .pCode = (const uint32_t *) fileContent,
     };
-    VkResult result = vkCreateShaderModule(device.vk_device, &shaderModuleCreateInfo, NULL, shaderOut);
-    assert(result == VK_SUCCESS);
+    CALL_VK(vkCreateShaderModule(device.vk_device, &shaderModuleCreateInfo, NULL, shaderOut));
 
     free(fileContent);
-
-    return result;
 }
 
 VkResult CreateGraphicsPipeline() {
