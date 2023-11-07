@@ -1,4 +1,4 @@
-#import "DemoViewController.h"
+#import "CustomViewController.h"
 #import <QuartzCore/CAMetalLayer.h>
 #import <CoreVideo/CVDisplayLink.h>
 
@@ -9,11 +9,11 @@
 
 
 #pragma mark -
-#pragma mark DemoViewController
+#pragma mark CustomViewController
 
-@implementation DemoViewController {
+@implementation CustomViewController {
     CVDisplayLinkRef _displayLink;
-    // TODO: vulkan state struct demo demo;
+    // TODO: vulkan state struct Custom Custom;
     uint32_t _maxFrameCount;
     uint64_t _frameCount;
     BOOL _stop;
@@ -25,15 +25,15 @@
 
     self.view.wantsLayer = YES;		// Back the view with a layer created by the makeBackingLayer method.
 
-    // If this value is set to zero, the demo will render frames until the window is closed.
+    // If this value is set to zero, the Custom will render frames until the window is closed.
     // If this value is not zero, it establishes a maximum number of frames that will be
-    // rendered, and once this count has been reached, the demo will stop rendering.
-    // Once rendering is finished, the demo will delay cleaning up Vulkan objects until
+    // rendered, and once this count has been reached, the Custom will stop rendering.
+    // Once rendering is finished, the Custom will delay cleaning up Vulkan objects until
     // the window is closed.
     _maxFrameCount = 0;
 
     // TODO: Setup vulkan
-    // demo_main(&demo, self.view.layer, argc, argv);
+    // Custom_main(&Custom, self.view.layer, argc, argv);
 
     _stop = NO;
     _frameCount = 0;
@@ -46,7 +46,7 @@
     _stop = YES;
 
     CVDisplayLinkRelease(_displayLink);
-    // TODO: demo_cleanup(&demo);
+    // TODO: Custom_cleanup(&Custom);
 
     [super viewDidDisappear];
 }
@@ -62,10 +62,10 @@ static CVReturn DisplayLinkCallback(CVDisplayLinkRef displayLink,
         CVOptionFlags flagsIn,
         CVOptionFlags* flagsOut,
         void* target) {
-    DemoViewController* demoVC =(DemoViewController*)target;
-    if ( !demoVC->_stop ) {
-        // TODO: Draw demo_draw(&demoVC->demo);
-        demoVC->_stop = (demoVC->_maxFrameCount && ++demoVC->_frameCount >= demoVC->_maxFrameCount);
+    CustomViewController* CustomVC =(CustomViewController*)target;
+    if ( !CustomVC->_stop ) {
+        // TODO: Draw Custom_draw(&CustomVC->Custom);
+        CustomVC->_stop = (CustomVC->_maxFrameCount && ++CustomVC->_frameCount >= CustomVC->_maxFrameCount);
     }
     return kCVReturnSuccess;
 }
@@ -74,9 +74,9 @@ static CVReturn DisplayLinkCallback(CVDisplayLinkRef displayLink,
 
 
 #pragma mark -
-#pragma mark DemoView
+#pragma mark CustomView
 
-@implementation DemoView
+@implementation CustomView
 
 /** Indicates that the view wants to draw using the backing layer instead of using drawRect:.  */
 -(BOOL) wantsUpdateLayer { return YES; }
@@ -95,7 +95,7 @@ static CVReturn DisplayLinkCallback(CVDisplayLinkRef displayLink,
 /**
  * If this view moves to a screen that has a different resolution scale (eg. Standard <=> Retina),
  * update the contentsScale of the layer, which will trigger a Vulkan VK_SUBOPTIMAL_KHR result, which
- * causes this demo to replace the swapchain, in order to optimize rendering for the new resolution.
+ * causes this Custom to replace the swapchain, in order to optimize rendering for the new resolution.
  */
 -(BOOL) layer: (CALayer *)layer shouldInheritContentsScale: (CGFloat)newScale fromWindow: (NSWindow *)window {
     if (newScale == layer.contentsScale) { return NO; }
@@ -128,11 +128,16 @@ static CVReturn DisplayLinkCallback(CVDisplayLinkRef displayLink,
   unichar pressedKey = [pressedKeyString characterAtIndex: 0];
   switch (pressedKey) {
     case NSUpArrowFunctionKey:
-        printf("UP ARROW\n");
         add_held_keys(Key_ArrowUp);
         break;
+    case NSRightArrowFunctionKey:
+        add_held_keys(Key_ArrowRight);
+        break;
     case NSDownArrowFunctionKey:
-        printf("Down ARROW\n");
+        add_held_keys(Key_ArrowDown);
+        break;
+    case NSLeftArrowFunctionKey:
+        add_held_keys(Key_ArrowLeft);
         break;
     case 'a':
         printf("A HELD\n");

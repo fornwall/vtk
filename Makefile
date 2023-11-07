@@ -39,7 +39,7 @@ rust-ffi:
 mac: shaders rustlib rust-ffi
 	cc \
 		platforms/mac/main_osx.m \
-		platforms/mac/DemoViewController.m \
+		platforms/mac/CustomViewController.m \
 		-o out/main_osx \
 		-framework Cocoa \
 		-framework CoreVideo \
