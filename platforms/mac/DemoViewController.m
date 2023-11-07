@@ -2,6 +2,8 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <CoreVideo/CVDisplayLink.h>
 
+#include <rust-ffi.h>
+
 #include <MoltenVK/mvk_vulkan.h>
 // #include "../../Vulkan-Tools/cube/cube.c"
 
@@ -48,6 +50,7 @@
 
     [super viewDidDisappear];
 }
+
 
 
 #pragma mark Display loop callback function
@@ -99,6 +102,43 @@ static CVReturn DisplayLinkCallback(CVDisplayLinkRef displayLink,
 
     layer.contentsScale = newScale;
     return YES;
+}
+
+- (BOOL)acceptsFirstResponder {
+    return YES;
+}
+
+- (BOOL)canBecomeKeyView {
+    return YES;
+}
+
+-(void) flagsChanged: (NSEvent*) theEvent
+{
+  if( theEvent.modifierFlags & NSEventModifierFlagShift ) {
+      printf("SHIFT HELD\n");
+  }
+}
+
+-(void) keyDown: (NSEvent*) theEvent
+{
+  NSString* pressedKeyString = theEvent.charactersIgnoringModifiers;
+  if (pressedKeyString.length == 0) {
+      // Reject dead keys.
+  }
+  unichar pressedKey = [pressedKeyString characterAtIndex: 0];
+  switch (pressedKey) {
+    case NSUpArrowFunctionKey:
+        printf("UP ARROW\n");
+        add_held_keys(Key_ArrowUp);
+        break;
+    case NSDownArrowFunctionKey:
+        printf("Down ARROW\n");
+        break;
+    case 'a':
+        printf("A HELD\n");
+        break;
+    //pressedKeys.insert( pressedKey );
+  }
 }
 
 @end

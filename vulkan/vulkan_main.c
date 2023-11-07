@@ -8,6 +8,7 @@
 #include <string.h>
 
 #define VK_WRAP_ARRAY_SIZE(x) ((int)(sizeof(x) / sizeof((x)[0])))
+#define VK_WRAP_ALLOC_ARRAY(element_type, array_size) ((element_type*) malloc(sizeof(element_type) * array_size))
 
 #ifdef __ANDROID__
 static const char *kTAG = "vulkan-example";
@@ -56,7 +57,7 @@ struct VulkanDeviceInfo device;
 
 struct VulkanSwapchainInfo {
     VkSwapchainKHR vk_swapchain;
-    uint32_t swap_chain_length;
+    uint32_t num_images;
 
     VkExtent2D vk_extend_2d;
     VkFormat vk_format;
@@ -268,13 +269,13 @@ void create_swap_chain() {
 
     CALL_VK(vkCreateSwapchainKHR(device.vk_device, &swapchainCreateInfo, NULL, &swapchain.vk_swapchain))
 
-    CALL_VK(vkGetSwapchainImagesKHR(device.vk_device, swapchain.vk_swapchain, &swapchain.swap_chain_length, NULL))
+    CALL_VK(vkGetSwapchainImagesKHR(device.vk_device, swapchain.vk_swapchain, &swapchain.num_images, NULL))
 
-    swapchain.vk_images = (VkImage *) malloc(sizeof(VkImage) * swapchain.swap_chain_length);
-    CALL_VK(vkGetSwapchainImagesKHR(device.vk_device, swapchain.vk_swapchain, &swapchain.swap_chain_length, swapchain.vk_images))
+    swapchain.vk_images = (VkImage *) malloc(sizeof(VkImage) * swapchain.num_images);
+    CALL_VK(vkGetSwapchainImagesKHR(device.vk_device, swapchain.vk_swapchain, &swapchain.num_images, swapchain.vk_images))
 
-    swapchain.vk_image_views = (VkImageView *) malloc(sizeof(VkImageView) * swapchain.swap_chain_length);
-    for (uint32_t i = 0; i < swapchain.swap_chain_length; i++) {
+    swapchain.vk_image_views = (VkImageView *) malloc(sizeof(VkImageView) * swapchain.num_images);
+    for (uint32_t i = 0; i < swapchain.num_images; i++) {
         VkImageViewCreateInfo vk_image_view_create_info = {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
                 .pNext = NULL,
@@ -303,7 +304,7 @@ void create_swap_chain() {
 }
 
 void delete_swap_chain() {
-    for (uint32_t i = 0; i < swapchain.swap_chain_length; i++) {
+    for (uint32_t i = 0; i < swapchain.num_images; i++) {
         vkDestroyFramebuffer(device.vk_device, swapchain.vk_framebuffers[i], NULL);
         vkDestroyImageView(device.vk_device, swapchain.vk_image_views[i], NULL);
     }
@@ -317,8 +318,8 @@ void delete_swap_chain() {
 void create_frame_buffers(VkRenderPass vk_render_pass) {
     VkImageView depth_view = VK_NULL_HANDLE;
     // create a framebuffer from each swapchain image
-    swapchain.vk_framebuffers = (VkFramebuffer *) malloc(sizeof(VkFramebuffer) * swapchain.swap_chain_length);
-    for (uint32_t i = 0; i < swapchain.swap_chain_length; i++) {
+    swapchain.vk_framebuffers = (VkFramebuffer *) malloc(sizeof(VkFramebuffer) * swapchain.num_images);
+    for (uint32_t i = 0; i < swapchain.num_images; i++) {
         VkImageView attachments[2] = {
                 swapchain.vk_image_views[i],
                 depth_view,
@@ -629,7 +630,7 @@ void delete_graphics_pipeline(void) {
 // init_window:
 //   Initialize Vulkan Context when android application window is created
 //   upon return, vulkan is ready to draw frames
-bool init_window(
+void init_window(
 #ifdef __ANDROID__
         struct android_app *app
 #elif defined __APPLE__
@@ -640,7 +641,7 @@ bool init_window(
 
     if (!load_vulkan_symbols()) {
         LOGW("Vulkan is unavailable, install vulkan and re-start");
-        return false;
+        return;
     }
 
     VkApplicationInfo app_info = {
@@ -710,39 +711,42 @@ bool init_window(
 
     create_graphics_pipeline();
 
-    // -----------------------------------------------
-    // Create a pool of command buffers to allocate command buffer from
-    VkCommandPoolCreateInfo cmdPoolCreateInfo = {
+    VkCommandPoolCreateInfo vk_command_pool_create_info = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
             .pNext = NULL,
+            // There are two possible flags for command pools:
+            // - VK_COMMAND_POOL_CREATE_TRANSIENT_BIT: Hint that command buffers are rerecorded with new commands
+            //    very often (may change memory allocation behavior).
+            // - VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT: Allow command buffers to be rerecorded individually,
+            //   without this flag they all have to be reset together.
             .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
             .queueFamilyIndex = device.queueFamilyIndex_,
     };
-    CALL_VK(vkCreateCommandPool(device.vk_device, &cmdPoolCreateInfo, NULL, &render.vk_command_pool));
+    CALL_VK(vkCreateCommandPool(device.vk_device, &vk_command_pool_create_info, NULL, &render.vk_command_pool));
 
     // Record a command buffer that just clear the screen
     // 1 command buffer draw in 1 framebuffer
-    // In our case we need 2 command as we have 2 framebuffer
-    render.command_buffer_len = swapchain.swap_chain_length;
-    render.vk_command_buffer = (VkCommandBuffer *) malloc(sizeof(VkCommandBuffer) * swapchain.swap_chain_length);
-    VkCommandBufferAllocateInfo cmdBufferCreateInfo = {
+    // In our case we create one command buffer per swap chain image.
+    render.command_buffer_len = swapchain.num_images;
+    render.vk_command_buffer = VK_WRAP_ALLOC_ARRAY(VkCommandBuffer, swapchain.num_images);
+    VkCommandBufferAllocateInfo vk_command_buffer_allocate_info = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             .pNext = NULL,
             .commandPool = render.vk_command_pool,
             .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             .commandBufferCount = render.command_buffer_len,
     };
-    CALL_VK(vkAllocateCommandBuffers(device.vk_device, &cmdBufferCreateInfo, render.vk_command_buffer));
+    CALL_VK(vkAllocateCommandBuffers(device.vk_device, &vk_command_buffer_allocate_info, render.vk_command_buffer));
 
-    for (uint32_t bufferIndex = 0; bufferIndex < swapchain.swap_chain_length; bufferIndex++) {
+    for (uint32_t bufferIndex = 0; bufferIndex < swapchain.num_images; bufferIndex++) {
         // We start by creating and declare the "beginning" our command buffer
-        VkCommandBufferBeginInfo cmdBufferBeginInfo = {
+        VkCommandBufferBeginInfo vk_command_buffer_begin_info = {
                 .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                 .pNext = NULL,
                 .flags = 0,
                 .pInheritanceInfo = NULL,
         };
-        CALL_VK(vkBeginCommandBuffer(render.vk_command_buffer[bufferIndex], &cmdBufferBeginInfo));
+        CALL_VK(vkBeginCommandBuffer(render.vk_command_buffer[bufferIndex], &vk_command_buffer_begin_info));
         // transition the display image to color attachment layout
         set_image_layout(render.vk_command_buffer[bufferIndex],
                          swapchain.vk_images[bufferIndex],
@@ -751,31 +755,34 @@ bool init_window(
                          VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
-        // Now we start a renderpass. Any draw command has to be recorded in a
-        // renderpass
-        VkClearValue clearVals = {.color = {.float32 = {0.0f, 0.34f, 0.90f, 1.0f}}};
-        VkRenderPassBeginInfo renderPassBeginInfo = {
+        // Now we start a renderpass. Any draw command has to be recorded in a renderpass.
+        VkClearValue vk_clear_value = {.color = {.float32 = {0.0f, 0.0f, 0.0f, 1.0f}}};
+        VkRenderPassBeginInfo vk_render_pass_begin_info = {
                 .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
                 .pNext = NULL,
                 .renderPass = render.vk_render_pass,
                 .framebuffer = swapchain.vk_framebuffers[bufferIndex],
-                .renderArea = {.offset = {.x = 0, .y = 0,},
-                        .extent = swapchain.vk_extend_2d},
+                .renderArea = {.offset = {.x = 0, .y = 0,}, .extent = swapchain.vk_extend_2d},
                 .clearValueCount = 1,
-                .pClearValues = &clearVals};
-        vkCmdBeginRenderPass(render.vk_command_buffer[bufferIndex], &renderPassBeginInfo,
-                             VK_SUBPASS_CONTENTS_INLINE);
-        // Bind what is necessary to the command buffer
-        vkCmdBindPipeline(render.vk_command_buffer[bufferIndex],
-                          VK_PIPELINE_BIND_POINT_GRAPHICS, gfxPipeline.vk_pipeline);
-        VkDeviceSize offset = 0;
-        vkCmdBindVertexBuffers(render.vk_command_buffer[bufferIndex], 0, 1, &buffers.vk_buffer, &offset);
+                .pClearValues = &vk_clear_value
+        };
 
-        // Draw Triangle
-        vkCmdDraw(render.vk_command_buffer[bufferIndex], 3, 1, 0, 0);
+        vkCmdBeginRenderPass(render.vk_command_buffer[bufferIndex], &vk_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+        {
+            vkCmdBindPipeline(render.vk_command_buffer[bufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, gfxPipeline.vk_pipeline);
 
+            uint32_t first_binding = 0;
+            uint32_t binding_count = 1;
+            VkDeviceSize buffer_offset = 0;
+            vkCmdBindVertexBuffers(render.vk_command_buffer[bufferIndex], first_binding, binding_count, &buffers.vk_buffer, &buffer_offset);
+
+            uint32_t vertex_count = 3;
+            uint32_t instance_count = 1;
+            uint32_t first_vertex = 0;
+            uint32_t first_instance = 0;
+            vkCmdDraw(render.vk_command_buffer[bufferIndex], vertex_count, instance_count, first_vertex, first_instance);
+        }
         vkCmdEndRenderPass(render.vk_command_buffer[bufferIndex]);
-
         CALL_VK(vkEndCommandBuffer(render.vk_command_buffer[bufferIndex]));
     }
 
@@ -798,7 +805,6 @@ bool init_window(
     CALL_VK(vkCreateSemaphore(device.vk_device, &semaphoreCreateInfo, NULL, &render.vk_semaphore));
 
     device.initialized_ = true;
-    return true;
 }
 
 bool is_vulkan_ready() {
@@ -821,26 +827,26 @@ void terminate_window() {
     device.initialized_ = false;
 }
 
-bool draw_frame() {
-    CALL_VK(vkWaitForFences(device.vk_device, 1, &render.vk_fence, VK_TRUE, 100000000));
-    CALL_VK(vkResetFences(device.vk_device, 1, &render.vk_fence));
+void draw_frame() {
+    CALL_VK(vkWaitForFences(device.vk_device, 1, &render.vk_fence, VK_TRUE, UINT64_MAX))
+    CALL_VK(vkResetFences(device.vk_device, 1, &render.vk_fence))
 
-    uint32_t nextIndex;
-    CALL_VK(vkAcquireNextImageKHR(device.vk_device, swapchain.vk_swapchain, UINT64_MAX, render.vk_semaphore, VK_NULL_HANDLE, &nextIndex));
+    uint32_t acquired_image_idx;
+    CALL_VK(vkAcquireNextImageKHR(device.vk_device, swapchain.vk_swapchain, UINT64_MAX, render.vk_semaphore, VK_NULL_HANDLE, &acquired_image_idx))
 
-    VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkPipelineStageFlags vk_pipeline_stage_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo submit_info = {
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
             .pNext = NULL,
             .waitSemaphoreCount = 1,
             .pWaitSemaphores = &render.vk_semaphore,
-            .pWaitDstStageMask = &waitStageMask,
+            .pWaitDstStageMask = &vk_pipeline_stage_flags,
             .commandBufferCount = 1,
-            .pCommandBuffers = &render.vk_command_buffer[nextIndex],
+            .pCommandBuffers = &render.vk_command_buffer[acquired_image_idx],
             .signalSemaphoreCount = 0,
             .pSignalSemaphores = NULL
     };
-    CALL_VK(vkQueueSubmit(device.vk_queue, 1, &submit_info, render.vk_fence));
+    CALL_VK(vkQueueSubmit(device.vk_queue, 1, &submit_info, render.vk_fence))
 
     VkResult result;
     VkPresentInfoKHR presentInfo = {
@@ -850,11 +856,10 @@ bool draw_frame() {
             .pWaitSemaphores = NULL,
             .swapchainCount = 1,
             .pSwapchains = &swapchain.vk_swapchain,
-            .pImageIndices = &nextIndex,
+            .pImageIndices = &acquired_image_idx,
             .pResults = &result,
     };
-    vkQueuePresentKHR(device.vk_queue, &presentInfo);
-    return true;
+    CALL_VK(vkQueuePresentKHR(device.vk_queue, &presentInfo))
 }
 
 /*
@@ -867,7 +872,7 @@ void set_image_layout(VkCommandBuffer cmdBuffer,
                       VkImageLayout newImageLayout,
                       VkPipelineStageFlags srcStages,
                       VkPipelineStageFlags destStages) {
-    VkImageMemoryBarrier imageMemoryBarrier = {
+    VkImageMemoryBarrier vk_image_memory_barrier = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
             .pNext = NULL,
             .srcAccessMask = 0,
@@ -888,13 +893,13 @@ void set_image_layout(VkCommandBuffer cmdBuffer,
 
     switch (oldImageLayout) {
         case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            imageMemoryBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            vk_image_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
             break;
         case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            vk_image_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
             break;
         case VK_IMAGE_LAYOUT_PREINITIALIZED:
-            imageMemoryBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+            vk_image_memory_barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
             break;
         default:
             break;
@@ -902,26 +907,26 @@ void set_image_layout(VkCommandBuffer cmdBuffer,
 
     switch (newImageLayout) {
         case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
             break;
         case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
             break;
         case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
             break;
         case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            imageMemoryBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
             break;
         case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            imageMemoryBarrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
             break;
         case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-            imageMemoryBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
             break;
         default:
             break;
     }
 
-    vkCmdPipelineBarrier(cmdBuffer, srcStages, destStages, 0, 0, NULL, 0, NULL, 1, &imageMemoryBarrier);
+    vkCmdPipelineBarrier(cmdBuffer, srcStages, destStages, 0, 0, NULL, 0, NULL, 1, &vk_image_memory_barrier);
 }
