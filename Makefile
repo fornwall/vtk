@@ -1,5 +1,5 @@
 CARGO_BUILD_COMMAND = cargo build
-GLSLC = glslangValidator
+GLSLC = glslc -I shaders --target-env=vulkan1.3
 MOLTENVK_PATH = ${HOME}/bin/vulkan-sdk/MoltenVK
 
 ifeq ($(RELEASE),1)
@@ -9,6 +9,10 @@ else
 	RUST_LIB_DIR = target/debug
 endif
 
+install-dependencies:
+	brew install shaderc # For glslc
+	cargo install bindgen-cli
+	cargo install cbindgen
 
 run:
 	env | grep VULK
@@ -23,10 +27,10 @@ out/shaders:
 shaders: out/shaders out/shaders/triangle.frag.spv out/shaders/triangle.vert.spv
 
 out/shaders/%.frag.spv : shaders/%.frag
-	$(GLSLC) -V $< -o $@
+	$(GLSLC) $< -o $@
 
 out/shaders/%.vert.spv : shaders/%.vert
-	$(GLSLC) -V $< -o $@
+	$(GLSLC) $< -o $@
 
 rustlib:
 	$(CARGO_BUILD_COMMAND)
@@ -52,4 +56,7 @@ mac: shaders rustlib rust-ffi
 		-lvulkan_example
 	./out/main_osx
 
-.PHONY: android rustlib run mac shaders
+clean:
+	rm -Rf out
+
+.PHONY: android rustlib run mac shaders install-dependencies clean
