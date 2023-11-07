@@ -12,6 +12,10 @@ bitflags! {
         const ArrowRight = 1 << 1;
         const ArrowDown = 1 << 2;
         const ArrowLeft = 1 << 3;
+        const Shift = 1 << 4;
+        const CapsLock = 1 << 5;
+        const Command = 1 << 6;
+        const Control = 1 << 7;
         //const A = 1 << 30;
         //const B = 1 << 31;
         //const C = 1 << 32;
@@ -34,6 +38,7 @@ pub extern "C" fn get_triangle_fragment_shader() -> *const c_char {
 #[no_mangle]
 pub extern "C" fn add_held_keys(held_keys: Key) {
     for key in held_keys.iter() {
+        println!("KEY HELD: {:?}", key);
         match key {
             Key::ArrowUp => {
                 println!("ArrowUp from rust");

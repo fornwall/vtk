@@ -112,13 +112,6 @@ static CVReturn DisplayLinkCallback(CVDisplayLinkRef displayLink,
     return YES;
 }
 
--(void) flagsChanged: (NSEvent*) theEvent
-{
-  if( theEvent.modifierFlags & NSEventModifierFlagShift ) {
-      printf("SHIFT HELD\n");
-  }
-}
-
 -(void) keyDown: (NSEvent*) theEvent
 {
   NSString* pressedKeyString = theEvent.charactersIgnoringModifiers;
@@ -142,7 +135,35 @@ static CVReturn DisplayLinkCallback(CVDisplayLinkRef displayLink,
     case 'a':
         printf("A HELD\n");
         break;
+    case 'f':
+        if ((theEvent.modifierFlags & (NSEventModifierFlagCommand | NSEventModifierFlagControl)) == (NSEventModifierFlagCommand | NSEventModifierFlagControl)) {
+          [[self window] toggleFullScreen: nil];
+        } else {
+          printf("f HELD\n");
+        }
+        break;
+    case 'q':
+        if ((theEvent.modifierFlags & NSEventModifierFlagCommand) == NSEventModifierFlagCommand) {
+            exit(0);
+        }
+        break;
     //pressedKeys.insert( pressedKey );
+  }
+}
+
+-(void) flagsChanged: (NSEvent*) theEvent
+{
+  if (theEvent.modifierFlags & NSEventModifierFlagShift) {
+        add_held_keys(Key_Shift);
+  }
+  if (theEvent.modifierFlags & NSEventModifierFlagCommand) {
+        add_held_keys(Key_Command);
+  }
+  if (theEvent.modifierFlags & NSEventModifierFlagCapsLock) {
+        add_held_keys(Key_CapsLock);
+  }
+  if (theEvent.modifierFlags & NSEventModifierFlagControl) {
+        add_held_keys(Key_Control);
   }
 }
 
