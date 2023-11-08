@@ -16,10 +16,10 @@ bitflags! {
         const CapsLock = 1 << 5;
         const Command = 1 << 6;
         const Control = 1 << 7;
-        //const A = 1 << 30;
-        //const B = 1 << 31;
-        //const C = 1 << 32;
-        //const D = 1 << 33;
+        const A = 1 << 10;
+        const D = 1 << 11;
+        const S = 1 << 12;
+        const W = 1 << 13;
 
         // The combination of `A`, `B`, and `C`.
         //const ABC = Self::A.bits() | Self::B.bits() | Self::C.bits();

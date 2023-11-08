@@ -6,8 +6,6 @@
 #include "vulkan_main.h"
 
 #include <MoltenVK/mvk_vulkan.h>
-// #include "../../Vulkan-Tools/cube/cube.c"
-
 
 #pragma mark -
 #pragma mark CustomViewController
@@ -127,6 +125,38 @@ static CVReturn DisplayLinkCallback(
     return YES;
 }
 
+void update_pressed_keys(Key* pressed_keys, uint32_t mac_identifier, bool pressed) {
+    Key key;
+    switch (mac_identifier) {
+        case NSUpArrowFunctionKey:
+            key = Key_ArrowUp;
+            break;
+        case NSRightArrowFunctionKey:
+            key = Key_ArrowRight;
+            break;
+        case NSDownArrowFunctionKey:
+            key = Key_ArrowDown;
+            break;
+        case NSLeftArrowFunctionKey:
+            key = Key_ArrowLeft;
+            break;
+        case 'a':
+            key = Key_A;
+            break;
+        case 's':
+            key = Key_A;
+            break;
+        default:
+            return;
+    }
+
+    if (pressed) {
+      pressed_keys->bits |= key.bits;
+    } else {
+      pressed_keys->bits &= ~key.bits;
+    }
+}
+
 - (void)keyDown: (NSEvent*)theEvent
 {
   NSString* pressedKeyString = theEvent.charactersIgnoringModifiers;
@@ -134,8 +164,12 @@ static CVReturn DisplayLinkCallback(
       // Reject dead keys.
   }
   unichar pressedKey = [pressedKeyString characterAtIndex: 0];
+  Key pressed_keys = {
+      .bits = 0
+  };
   switch (pressedKey) {
     case NSUpArrowFunctionKey:
+        pressed_keys.bits |= Key_ArrowUp.bits;
         add_held_keys(Key_ArrowUp);
         break;
     case NSRightArrowFunctionKey:
@@ -148,7 +182,16 @@ static CVReturn DisplayLinkCallback(
         add_held_keys(Key_ArrowLeft);
         break;
     case 'a':
-        printf("A HELD\n");
+        add_held_keys(Key_A);
+        break;
+    case 'd':
+        add_held_keys(Key_D);
+        break;
+    case 's':
+        add_held_keys(Key_S);
+        break;
+    case 'w':
+        add_held_keys(Key_W);
         break;
     case 'f':
         if ((theEvent.modifierFlags & (NSEventModifierFlagCommand | NSEventModifierFlagControl)) == (NSEventModifierFlagCommand | NSEventModifierFlagControl)) {
