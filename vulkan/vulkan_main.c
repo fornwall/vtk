@@ -862,7 +862,24 @@ void draw_frame() {
     CALL_VK(vkResetFences(device.vk_device, 1, &render.vk_fence))
 
     uint32_t acquired_image_idx;
-    CALL_VK(vkAcquireNextImageKHR(device.vk_device, swapchain.vk_swapchain, UINT64_MAX, render.vk_semaphore, VK_NULL_HANDLE, &acquired_image_idx))
+    VkResult acquire_result = vkAcquireNextImageKHR(device.vk_device, swapchain.vk_swapchain, UINT64_MAX, render.vk_semaphore, VK_NULL_HANDLE, &acquired_image_idx);
+    switch (acquire_result) {
+        case VK_SUCCESS:
+            break;
+        case VK_SUBOPTIMAL_KHR:
+            printf("VK_SUBOPTIMAL_KHR\n");
+            break;
+        case VK_ERROR_DEVICE_LOST:
+            printf("Device lost\n");
+            assert(false);
+        case VK_ERROR_SURFACE_LOST_KHR:
+            printf("Surface lost\n");
+            assert(false);
+        default:
+            printf("vkAcquireNextImageKHR failed\n");
+            assert(false);
+            break;
+    }
 
     VkPipelineStageFlags vk_pipeline_stage_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo submit_info = {
@@ -889,7 +906,24 @@ void draw_frame() {
             .pImageIndices = &acquired_image_idx,
             .pResults = &result,
     };
-    CALL_VK(vkQueuePresentKHR(device.vk_queue, &presentInfo))
+    VkResult present_result = vkQueuePresentKHR(device.vk_queue, &presentInfo);
+    switch (present_result) {
+        case VK_SUCCESS:
+            break;
+        case VK_SUBOPTIMAL_KHR:
+            printf("present_result VK_SUBOPTIMAL_KHR\n");
+            break;
+        case VK_ERROR_DEVICE_LOST:
+            printf("Device lost\n");
+            assert(false);
+        case VK_ERROR_SURFACE_LOST_KHR:
+            printf("Surface lost\n");
+            assert(false);
+        default:
+            printf("vkAcquireNextImageKHR failed\n");
+            assert(false);
+            break;
+    }
 }
 
 /*
