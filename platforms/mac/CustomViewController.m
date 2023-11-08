@@ -25,11 +25,9 @@
     [super viewWillAppear];
 
     self.view.wantsLayer = YES; // Back the view with a layer created by the makeBackingLayer method.
-    printf("viewWillAppear\n");
 }
 
 - (void)viewDidAppear {
-    printf("viewDidAppear controller\n");
     // If this value is set to zero, the Custom will render frames until the window is closed.
     // If this value is not zero, it establishes a maximum number of frames that will be
     // rendered, and once this count has been reached, the Custom will stop rendering.
@@ -106,7 +104,6 @@ static CVReturn DisplayLinkCallback(
     CAMetalLayer* layer = [self.class.layerClass layer];
     //CGSize viewScale = [self convertSizeToBacking: CGSizeMake(1.0, 1.0)];
     //layer.contentsScale = MIN(viewScale.width, viewScale.height);
-    printf("MAKE BACKING\n");
     return layer;
 }
 

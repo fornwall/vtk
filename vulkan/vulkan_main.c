@@ -8,32 +8,34 @@
 #ifdef __ANDROID__
 #include <android/log.h>
 static const char *kTAG = "vulkan-example";
+#define VA_ARGS(...) , ##__VA_ARGS__
 # define LOGI(...) \
-  ((void)__android_log_print(ANDROID_LOG_INFO, kTAG, __VA_ARGS__))
+  ((void)__android_log_print(ANDROID_LOG_INFO, kTAG VA_ARGS(__VA_ARGS__)))
 # define LOGW(...) \
-  ((void)__android_log_print(ANDROID_LOG_WARN, kTAG, __VA_ARGS__))
+  ((void)__android_log_print(ANDROID_LOG_WARN, kTAG VA_ARGS(__VA_ARGS__)))
 # define LOGE(...) \
-  ((void)__android_log_print(ANDROID_LOG_ERROR, kTAG, __VA_ARGS__))
+  ((void)__android_log_print(ANDROID_LOG_ERROR, kTAG VA_ARGS(__VA_ARGS__)))
 # define CALL_VK(func)                                                 \
-  if (VK_SUCCESS != (func)) {                                         \
-    __android_log_print(ANDROID_LOG_ERROR, "Tutorial ",               \
-                        "Vulkan error. File[%s], line[%d]", __FILE__, \
-                        __LINE__);                                    \
-    assert(false);                                                    \
+  if (VK_SUCCESS != (func)) {                                          \
+    __android_log_print(ANDROID_LOG_ERROR, "Tutorial ",                \
+                        "Vulkan error. File[%s], line[%d]", __FILE__,  \
+                        __LINE__);                                     \
+    assert(false);                                                     \
   }
 #else
 #include <stdio.h>
+#define VA_ARGS(...) , ##__VA_ARGS__
 # define LOGI(x, ...) \
-  ((void)fprintf(stderr, "[info] " x "\n", __VA_ARGS__))
+  ((void)fprintf(stderr, "[info] " x "\n" VA_ARGS(__VA_ARGS__)))
 # define LOGW(x, ...) \
-  ((void)fprintf(stderr, "[warn] " x "\n", __VA_ARGS__))
+  ((void)fprintf(stderr, "[warn] " x "\n" VA_ARGS(__VA_ARGS__)))
 # define LOGE(x, ...) \
-  ((void)fprintf(stderr, "[error] " x "\n", __VA_ARGS__))
-# define CALL_VK(func)                                                   \
-  if (VK_SUCCESS != (func)) {                                            \
+  ((void)fprintf(stderr, "[error] " x "\n" VA_ARGS(__VA_ARGS__)))
+# define CALL_VK(func)                                                    \
+  if (VK_SUCCESS != (func)) {                                             \
     fprintf(stderr, "[error] Vulkan error. File[%s], line[%d]", __FILE__, \
-                        __LINE__);                                       \
-    assert(false);                                                       \
+                        __LINE__);                                        \
+    assert(false);                                                        \
   }
 #endif
 
@@ -232,7 +234,6 @@ void create_swap_chain() {
     vkGetPhysicalDeviceSurfaceFormatsKHR(device.vk_physical_device, device.vk_surface, &format_count, NULL);
     VkSurfaceFormatKHR *formats = (VkSurfaceFormatKHR *) malloc(sizeof(VkSurfaceFormatKHR) * format_count);
     vkGetPhysicalDeviceSurfaceFormatsKHR(device.vk_physical_device, device.vk_surface, &format_count, formats);
-    LOGI("Got %d formats", format_count);
 
     uint32_t chosenFormat;
     for (chosenFormat = 0; chosenFormat < format_count; chosenFormat++) {
@@ -344,6 +345,16 @@ void create_frame_buffers(VkRenderPass vk_render_pass) {
     }
 }
 
+void recreate_swap_chain() {
+   printf("recreate_swap_chain(): called\n");
+   // https://vulkan-tutorial.com/Drawing_a_triangle/Swap_chain_recreation
+   CALL_VK(vkDeviceWaitIdle(device.vk_device));
+   delete_swap_chain();
+   create_swap_chain();
+   create_frame_buffers(render.vk_render_pass);
+   printf("recreate_swap_chain(): done\n");
+}
+
 // A helper function
 bool MapMemoryTypeToIndex(uint32_t typeBits, VkFlags requirements_mask,
                           uint32_t *typeIndex) {
@@ -451,7 +462,6 @@ void load_shader_from_file(const char *filePath, VkShaderModule *shaderOut) {
     size_t newLen = fread(source, sizeof(char), MAXBUFLEN, fp);
     assert(ferror(fp) == 0);
     source[newLen] = '\0';
-    printf("Size of %s = %d\n", filePath, newLen);
     VkShaderModuleCreateInfo vk_shader_module_create_info = {
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             .pNext = NULL,
@@ -866,15 +876,16 @@ void draw_frame() {
         case VK_SUCCESS:
             break;
         case VK_ERROR_OUT_OF_DATE_KHR:
+            LOGI("vkAcquireNextImageKHR() returned VK_ERROR_OUT_OF_DATE_KHR - recreating... %d", 1);
             // We cannot present it - recreate and return.
-            // recreate_swap_chain();
+            recreate_swap_chain();
             break;
         case VK_SUBOPTIMAL_KHR:
             // Ok to go ahead and present image - recreate after present.
-            printf("VK_SUBOPTIMAL_KHR\n");
+            LOGI("vkAcquireNextImageKHR() returned VK_SUBOPTIMAL_KHR, %d", 1);
             break;
         default:
-            printf("vkAcquireNextImageKHR failed\n");
+            LOGE("vkAcquireNextImageKHR failed");
             assert(false);
             break;
     }
@@ -912,10 +923,11 @@ void draw_frame() {
             break;
         case VK_SUBOPTIMAL_KHR:
         case VK_ERROR_OUT_OF_DATE_KHR:
-            // recreate_swap_chain();
+            LOGI("vkQueuePresentKHR() returned VK_SUBOPTIMAL_KHR | VK_ERROR_OUT_OF_DATE_KHR - recreating...");
+            recreate_swap_chain();
             break;
         default:
-            printf("vkQueuePresentKHR failed\n");
+            LOGE("vkQueuePresentKHR failed");
             assert(false);
             break;
     }
