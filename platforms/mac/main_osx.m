@@ -12,7 +12,7 @@ int main(int _argc __attribute__((unused)), const char * _argv[] __attribute__((
     CustomViewController * viewController = [[CustomViewController alloc] init];
     //[self.window setContentView:viewController.view];
     //CustomView* view = [[CustomView alloc] initWithFrame: frame];
-    CustomView* view = viewController.view;
+    NSView* view = viewController.view;
 
     NSUInteger windowStyle = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
     id window = [[[NSWindow alloc] initWithContentRect:frame

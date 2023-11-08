@@ -88,7 +88,7 @@ struct VulkanGfxPipelineInfo gfxPipeline;
 struct VulkanRenderInfo {
     VkRenderPass vk_render_pass;
     VkCommandPool vk_command_pool;
-    VkCommandBuffer *vk_command_buffer;
+    VkCommandBuffer *vk_command_buffers;
     uint32_t command_buffer_len;
     VkSemaphore vk_semaphore;
     VkFence vk_fence;
@@ -248,7 +248,7 @@ void create_swap_chain() {
     CALL_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.vk_physical_device, device.vk_surface, &surfaceCap))
     assert(surfaceCap.supportedCompositeAlpha | VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR);
 
-    LOGE("vk_surface_capabilities.minImageCount = %d", vk_surface_capabilities.minImageCount);
+    LOGI("vk_surface_capabilities.minImageCount = %d", vk_surface_capabilities.minImageCount);
     VkSwapchainCreateInfoKHR swapchainCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             .pNext = NULL,
@@ -311,12 +311,21 @@ void delete_swap_chain() {
     for (uint32_t i = 0; i < swapchain.num_images; i++) {
         vkDestroyFramebuffer(device.vk_device, swapchain.vk_framebuffers[i], NULL);
         vkDestroyImageView(device.vk_device, swapchain.vk_image_views[i], NULL);
+        // https://github.com/KhronosGroup/Vulkan-ValidationLayers/issues/2718
+        // TODO: Delete not presentable image here?
+        // vkDestroyImage(device.vk_device, swapchain.vk_images[i], NULL);
     }
     vkDestroySwapchainKHR(device.vk_device, swapchain.vk_swapchain, NULL);
 
-    free(swapchain.vk_images);
-    free(swapchain.vk_image_views);
     free(swapchain.vk_framebuffers);
+    free(swapchain.vk_image_views);
+    free(swapchain.vk_images);
+
+    swapchain.vk_framebuffers = NULL;
+    swapchain.vk_image_views = NULL;
+    swapchain.vk_images = NULL;
+
+    // Note that vk_swapchain is just a handle, not a pointer.
 }
 
 void create_frame_buffers(VkRenderPass vk_render_pass) {
@@ -343,16 +352,6 @@ void create_frame_buffers(VkRenderPass vk_render_pass) {
         CALL_VK(vkCreateFramebuffer(device.vk_device, &vk_frame_buffer_create_info, NULL,
                                     &swapchain.vk_framebuffers[i]));
     }
-}
-
-void recreate_swap_chain() {
-   printf("recreate_swap_chain(): called\n");
-   // https://vulkan-tutorial.com/Drawing_a_triangle/Swap_chain_recreation
-   CALL_VK(vkDeviceWaitIdle(device.vk_device));
-   delete_swap_chain();
-   create_swap_chain();
-   create_frame_buffers(render.vk_render_pass);
-   printf("recreate_swap_chain(): done\n");
 }
 
 // A helper function
@@ -428,7 +427,7 @@ void create_vertex_buffer() {
     CALL_VK(vkBindBufferMemory(device.vk_device, buffers.vk_buffer, deviceMemory, 0))
 }
 
-void delete_buffers(void) {
+void delete_vertex_buffers(void) {
     vkDestroyBuffer(device.vk_device, buffers.vk_buffer, NULL);
 }
 
@@ -455,7 +454,7 @@ void load_shader_from_file(const char *filePath, VkShaderModule *shaderOut) {
 
     free(fileContent);
 #else
-#define MAXBUFLEN 1000000
+#define MAXBUFLEN 100000
     char source[MAXBUFLEN + 1];
     FILE *fp = fopen(filePath, "r");
     assert(fp != NULL);
@@ -635,30 +634,85 @@ void create_graphics_pipeline() {
             .basePipelineIndex = 0,
     };
 
-    VkPipelineCacheCreateInfo pipelineCacheInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
-            .pNext = NULL,
-            .flags = 0,  // reserved, must be 0
-            .initialDataSize = 0,
-            .pInitialData = NULL,
-    };
-
-    CALL_VK(vkCreatePipelineCache(device.vk_device, &pipelineCacheInfo, NULL, &gfxPipeline.vk_pipeline_cache));
-
-    CALL_VK(vkCreateGraphicsPipelines(
-            device.vk_device, gfxPipeline.vk_pipeline_cache, 1, &pipelineCreateInfo, NULL,
-            &gfxPipeline.vk_pipeline))
+    // VkPipelineCacheCreateInfo pipelineCacheInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO, .pNext = NULL, .flags = 0,  // reserved, must be 0 .initialDataSize = 0, .pInitialData = NULL, };
+    //CALL_VK(vkCreatePipelineCache(device.vk_device, &pipelineCacheInfo, NULL, &gfxPipeline.vk_pipeline_cache));
+    CALL_VK(vkCreateGraphicsPipelines(device.vk_device, NULL /*gfxPipeline.vk_pipeline_cache*/, 1, &pipelineCreateInfo, NULL, &gfxPipeline.vk_pipeline))
 
     // We don't need the shaders anymore, we can release their memory
     vkDestroyShaderModule(device.vk_device, vertexShader, NULL);
     vkDestroyShaderModule(device.vk_device, fragmentShader, NULL);
 }
 
+void create_command_buffers() {
+    // Record a command buffer that just clear the screen
+    // 1 command buffer draw in 1 framebuffer
+    // In our case we create one command buffer per swap chain image.
+    render.command_buffer_len = swapchain.num_images;
+    render.vk_command_buffers = VK_WRAP_ALLOC_ARRAY(VkCommandBuffer, swapchain.num_images);
+    VkCommandBufferAllocateInfo vk_command_buffers_allocate_info = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .pNext = NULL,
+            .commandPool = render.vk_command_pool,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = render.command_buffer_len,
+    };
+    CALL_VK(vkAllocateCommandBuffers(device.vk_device, &vk_command_buffers_allocate_info, render.vk_command_buffers));
+
+    for (uint32_t bufferIndex = 0; bufferIndex < swapchain.num_images; bufferIndex++) {
+        // We start by creating and declare the "beginning" our command buffer
+        VkCommandBufferBeginInfo vk_command_buffers_begin_info = {
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                .pNext = NULL,
+                .flags = 0,
+                .pInheritanceInfo = NULL,
+        };
+        CALL_VK(vkBeginCommandBuffer(render.vk_command_buffers[bufferIndex], &vk_command_buffers_begin_info));
+        // transition the display image to color attachment layout
+        set_image_layout(render.vk_command_buffers[bufferIndex],
+                         swapchain.vk_images[bufferIndex],
+                         VK_IMAGE_LAYOUT_UNDEFINED,
+                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+
+        // Now we start a renderpass. Any draw command has to be recorded in a renderpass.
+        VkClearValue vk_clear_value = {.color = {.float32 = {0.0f, 0.0f, 0.0f, 1.0f}}};
+        VkRenderPassBeginInfo vk_render_pass_begin_info = {
+                .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                .pNext = NULL,
+                .renderPass = render.vk_render_pass,
+                .framebuffer = swapchain.vk_framebuffers[bufferIndex],
+                .renderArea = {.offset = {.x = 0, .y = 0,}, .extent = swapchain.vk_extend_2d},
+                .clearValueCount = 1,
+                .pClearValues = &vk_clear_value
+        };
+
+        vkCmdBeginRenderPass(render.vk_command_buffers[bufferIndex], &vk_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+        {
+            vkCmdBindPipeline(render.vk_command_buffers[bufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, gfxPipeline.vk_pipeline);
+
+            uint32_t first_binding = 0;
+            uint32_t binding_count = 1;
+            VkDeviceSize buffer_offset = 0;
+            vkCmdBindVertexBuffers(render.vk_command_buffers[bufferIndex], first_binding, binding_count, &buffers.vk_buffer, &buffer_offset);
+
+            uint32_t vertex_count = 3;
+            uint32_t instance_count = 1;
+            uint32_t first_vertex = 0;
+            uint32_t first_instance = 0;
+            vkCmdDraw(render.vk_command_buffers[bufferIndex], vertex_count, instance_count, first_vertex, first_instance);
+        }
+        vkCmdEndRenderPass(render.vk_command_buffers[bufferIndex]);
+        CALL_VK(vkEndCommandBuffer(render.vk_command_buffers[bufferIndex]));
+    }
+}
+
 void delete_graphics_pipeline(void) {
     if (gfxPipeline.vk_pipeline == VK_NULL_HANDLE) return;
     vkDestroyPipeline(device.vk_device, gfxPipeline.vk_pipeline, NULL);
-    vkDestroyPipelineCache(device.vk_device, gfxPipeline.vk_pipeline_cache, NULL);
+    //vkDestroyPipelineCache(device.vk_device, gfxPipeline.vk_pipeline_cache, NULL);
     vkDestroyPipelineLayout(device.vk_device, gfxPipeline.vk_pipeline_layout, NULL);
+    // TODO: free memory?
 }
 
 // init_window:
@@ -764,67 +818,7 @@ void init_window(
     };
     CALL_VK(vkCreateCommandPool(device.vk_device, &vk_command_pool_create_info, NULL, &render.vk_command_pool));
 
-    // Record a command buffer that just clear the screen
-    // 1 command buffer draw in 1 framebuffer
-    // In our case we create one command buffer per swap chain image.
-    render.command_buffer_len = swapchain.num_images;
-    render.vk_command_buffer = VK_WRAP_ALLOC_ARRAY(VkCommandBuffer, swapchain.num_images);
-    VkCommandBufferAllocateInfo vk_command_buffer_allocate_info = {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .pNext = NULL,
-            .commandPool = render.vk_command_pool,
-            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = render.command_buffer_len,
-    };
-    CALL_VK(vkAllocateCommandBuffers(device.vk_device, &vk_command_buffer_allocate_info, render.vk_command_buffer));
-
-    for (uint32_t bufferIndex = 0; bufferIndex < swapchain.num_images; bufferIndex++) {
-        // We start by creating and declare the "beginning" our command buffer
-        VkCommandBufferBeginInfo vk_command_buffer_begin_info = {
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                .pNext = NULL,
-                .flags = 0,
-                .pInheritanceInfo = NULL,
-        };
-        CALL_VK(vkBeginCommandBuffer(render.vk_command_buffer[bufferIndex], &vk_command_buffer_begin_info));
-        // transition the display image to color attachment layout
-        set_image_layout(render.vk_command_buffer[bufferIndex],
-                         swapchain.vk_images[bufferIndex],
-                         VK_IMAGE_LAYOUT_UNDEFINED,
-                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-
-        // Now we start a renderpass. Any draw command has to be recorded in a renderpass.
-        VkClearValue vk_clear_value = {.color = {.float32 = {0.0f, 0.0f, 0.0f, 1.0f}}};
-        VkRenderPassBeginInfo vk_render_pass_begin_info = {
-                .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-                .pNext = NULL,
-                .renderPass = render.vk_render_pass,
-                .framebuffer = swapchain.vk_framebuffers[bufferIndex],
-                .renderArea = {.offset = {.x = 0, .y = 0,}, .extent = swapchain.vk_extend_2d},
-                .clearValueCount = 1,
-                .pClearValues = &vk_clear_value
-        };
-
-        vkCmdBeginRenderPass(render.vk_command_buffer[bufferIndex], &vk_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-        {
-            vkCmdBindPipeline(render.vk_command_buffer[bufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, gfxPipeline.vk_pipeline);
-
-            uint32_t first_binding = 0;
-            uint32_t binding_count = 1;
-            VkDeviceSize buffer_offset = 0;
-            vkCmdBindVertexBuffers(render.vk_command_buffer[bufferIndex], first_binding, binding_count, &buffers.vk_buffer, &buffer_offset);
-
-            uint32_t vertex_count = 3;
-            uint32_t instance_count = 1;
-            uint32_t first_vertex = 0;
-            uint32_t first_instance = 0;
-            vkCmdDraw(render.vk_command_buffer[bufferIndex], vertex_count, instance_count, first_vertex, first_instance);
-        }
-        vkCmdEndRenderPass(render.vk_command_buffer[bufferIndex]);
-        CALL_VK(vkEndCommandBuffer(render.vk_command_buffer[bufferIndex]));
-    }
+    create_command_buffers();
 
     // We need to create a fence to be able, in the main loop, to wait for our
     // draw command(s) to finish before swapping the framebuffers
@@ -852,19 +846,32 @@ bool is_vulkan_ready() {
 }
 
 void terminate_window() {
-    vkFreeCommandBuffers(device.vk_device, render.vk_command_pool, render.command_buffer_len, render.vk_command_buffer);
-    free(render.vk_command_buffer);
+    vkFreeCommandBuffers(device.vk_device, render.vk_command_pool, render.command_buffer_len, render.vk_command_buffers);
+    free(render.vk_command_buffers);
 
     vkDestroyCommandPool(device.vk_device, render.vk_command_pool, NULL);
     vkDestroyRenderPass(device.vk_device, render.vk_render_pass, NULL);
     delete_swap_chain();
     delete_graphics_pipeline();
-    delete_buffers();
+    delete_vertex_buffers();
 
     vkDestroyDevice(device.vk_device, NULL);
     vkDestroyInstance(device.vk_instance, NULL);
 
     device.initialized_ = false;
+}
+
+void recreate_swap_chain() {
+    CALL_VK(vkDeviceWaitIdle(device.vk_device))
+
+    delete_swap_chain();
+    delete_graphics_pipeline();
+    // TODO: Not necessary delete_vertex_buffers();
+
+    create_swap_chain();
+    create_frame_buffers(render.vk_render_pass);
+    create_graphics_pipeline();
+    create_command_buffers();
 }
 
 void draw_frame() {
@@ -900,7 +907,7 @@ void draw_frame() {
             .pWaitSemaphores = &render.vk_semaphore,
             .pWaitDstStageMask = &vk_pipeline_stage_flags,
             .commandBufferCount = 1,
-            .pCommandBuffers = &render.vk_command_buffer[acquired_image_idx],
+            .pCommandBuffers = &render.vk_command_buffers[acquired_image_idx],
             .signalSemaphoreCount = 0,
             .pSignalSemaphores = NULL
     };

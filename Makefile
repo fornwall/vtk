@@ -43,7 +43,7 @@ rust-ffi:
 
 # ~/bin/vulkan-sdk/MoltenVK/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a
 mac: shaders rustlib rust-ffi
-	cc -Wall -Wextra -O2 \
+	cc -Wall -Wextra -O -g \
 		platforms/mac/main_osx.m \
 		platforms/mac/CustomViewController.m \
 		vulkan/vulkan_main.m \

@@ -37,7 +37,7 @@
     _stop = NO;
     _frameCount = 0;
 
-    init_window(self.view.layer);
+    init_window((const CAMetalLayer*) self.view.layer);
 
     CVDisplayLinkCreateWithActiveCGDisplays(&_displayLink);
     CVDisplayLinkSetOutputCallback(_displayLink, &DisplayLinkCallback, self);
