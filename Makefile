@@ -41,12 +41,15 @@ rust-ffi:
 
 # ~/bin/vulkan-sdk/MoltenVK/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a
 mac: shaders rustlib rust-ffi
-	cc \
+	c++ -Wall -Wextra \
 		platforms/mac/main_osx.m \
 		platforms/mac/CustomViewController.m \
+		vulkan/vulkan_main.m \
 		-o out/main_osx \
 		-framework Cocoa \
-		-framework CoreVideo \
+		-framework IOKit \
+		-framework IOSurface \
+		-framework Metal \
 		-framework QuartzCore \
 		-I$(MOLTENVK_PATH)/include \
 		-Iout/headers \

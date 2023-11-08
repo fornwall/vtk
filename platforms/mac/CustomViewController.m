@@ -55,17 +55,25 @@
 
 #pragma mark Display loop callback function
 
-/** Rendering loop callback function for use with a CVDisplayLink. */
-static CVReturn DisplayLinkCallback(CVDisplayLinkRef displayLink,
-        const CVTimeStamp* now,
-        const CVTimeStamp* outputTime,
-        CVOptionFlags flagsIn,
-        CVOptionFlags* flagsOut,
-        void* target) {
-    CustomViewController* CustomVC =(CustomViewController*)target;
-    if ( !CustomVC->_stop ) {
+// Rendering loop callback function for use with a CVDisplayLink.
+// https://developer.apple.com/documentation/corevideo/cvdisplaylinkoutputcallback
+static CVReturn DisplayLinkCallback(
+        // A display link that requests a frame.
+        CVDisplayLinkRef display_link __attribute__((unused)),
+        // A pointer to the current time.
+        const CVTimeStamp* _in_now __attribute__((unused)),
+        // A pointer to the display time for a frame.
+        const CVTimeStamp* _in_output_time __attribute__((unused)),
+        // Currently unused. Pass 0.
+        CVOptionFlags _flags_in __attribute__((unused)),
+        // Currently unused. Pass 0 __attribute__((unused)).
+        CVOptionFlags* _flags_out __attribute__((unused)),
+        // A pointer to app-defined data.
+        void* display_link_context __attribute__((unused))) {
+    CustomViewController* view_controller = (CustomViewController*) display_link_context;
+    if (!view_controller->_stop) {
         // TODO: Draw Custom_draw(&CustomVC->Custom);
-        CustomVC->_stop = (CustomVC->_maxFrameCount && ++CustomVC->_frameCount >= CustomVC->_maxFrameCount);
+        view_controller->_stop = (view_controller->_maxFrameCount && ++view_controller->_frameCount >= view_controller->_maxFrameCount);
     }
     return kCVReturnSuccess;
 }
@@ -97,7 +105,7 @@ static CVReturn DisplayLinkCallback(CVDisplayLinkRef displayLink,
  * update the contentsScale of the layer, which will trigger a Vulkan VK_SUBOPTIMAL_KHR result, which
  * causes this Custom to replace the swapchain, in order to optimize rendering for the new resolution.
  */
--(BOOL) layer: (CALayer *)layer shouldInheritContentsScale: (CGFloat)newScale fromWindow: (NSWindow *)window {
+- (BOOL)layer: (CALayer*)layer shouldInheritContentsScale:(CGFloat)newScale fromWindow:(NSWindow*)window {
     if (newScale == layer.contentsScale) { return NO; }
 
     layer.contentsScale = newScale;
@@ -112,7 +120,7 @@ static CVReturn DisplayLinkCallback(CVDisplayLinkRef displayLink,
     return YES;
 }
 
--(void) keyDown: (NSEvent*) theEvent
+- (void)keyDown: (NSEvent*)theEvent
 {
   NSString* pressedKeyString = theEvent.charactersIgnoringModifiers;
   if (pressedKeyString.length == 0) {

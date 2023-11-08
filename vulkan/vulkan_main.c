@@ -1,16 +1,12 @@
 #include "vulkan_main.h"
 #include "vulkan_wrapper.h"
 
-#include <android/log.h>
-
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define VK_WRAP_ARRAY_SIZE(x) ((int)(sizeof(x) / sizeof((x)[0])))
-#define VK_WRAP_ALLOC_ARRAY(element_type, array_size) ((element_type*) malloc(sizeof(element_type) * array_size))
-
 #ifdef __ANDROID__
+#include <android/log.h>
 static const char *kTAG = "vulkan-example";
 # define LOGI(...) \
   ((void)__android_log_print(ANDROID_LOG_INFO, kTAG, __VA_ARGS__))
@@ -26,20 +22,23 @@ static const char *kTAG = "vulkan-example";
     assert(false);                                                    \
   }
 #else
-# define LOGI(...) \
-  ((void)fprintf(stderr, "[info] %s\n", __VA_ARGS__))
-# define LOGW(...) \
-  ((void)fprintf(stderr, "[warn] %s\n", __VA_ARGS__))
-# define LOGE(...) \
-  ((void)fprintf(stderr, "[error] %s\n", __VA_ARGS__))
+#include <stdio.h>
+# define LOGI(x, ...) \
+  ((void)fprintf(stderr, "[info] " x "\n", __VA_ARGS__))
+# define LOGW(x, ...) \
+  ((void)fprintf(stderr, "[warn] " x "\n", __VA_ARGS__))
+# define LOGE(x, ...) \
+  ((void)fprintf(stderr, "[error] " x "\n", __VA_ARGS__))
 # define CALL_VK(func)                                                   \
   if (VK_SUCCESS != (func)) {                                            \
-    fpintf(stderr, "[error] Vulkan error. File[%s], line[%d]", __FILE__, \
+    fprintf(stderr, "[error] Vulkan error. File[%s], line[%d]", __FILE__, \
                         __LINE__);                                       \
     assert(false);                                                       \
   }
 #endif
 
+#define VK_WRAP_ARRAY_SIZE(x) ((int)(sizeof(x) / sizeof((x)[0])))
+#define VK_WRAP_ALLOC_ARRAY(element_type, array_size) ((element_type*) malloc(sizeof(element_type) * array_size))
 
 struct VulkanDeviceInfo {
     bool initialized_;
@@ -95,8 +94,6 @@ struct VulkanRenderInfo {
 
 struct VulkanRenderInfo render;
 
-struct android_app *androidAppCtx = NULL;
-
 /*
  * set_image_layout():
  *    Helper function to transition color buffer layout
@@ -110,7 +107,10 @@ void create_vulkan_device(
 #ifdef __ANDROID__
         ANativeWindow *native_window,
 #elif defined __APPLE__
-        const CAMetalLayer* metal_layer,
+        CAMetalLayer const* metal_layer,
+#else
+        struct wl_display* wayland_display,
+        struct wl_surface* wayland_surface,
 #endif
         VkApplicationInfo *appInfo) {
     const char *instance_extensions[] = {
@@ -149,7 +149,6 @@ void create_vulkan_device(
             .flags = 0,
             .window = native_window
     };
-
     CALL_VK(vkCreateAndroidSurfaceKHR(device.vk_instance, &surface_create_info, NULL, &device.vk_surface));
 #elif defined __APPLE__
     VkMetalSurfaceCreateInfoEXT surface_create_info = {
@@ -158,10 +157,14 @@ void create_vulkan_device(
             .flags = 0,
             .pLayer = metal_layer
     };
-
     CALL_VK(vkCreateMetalSurfaceEXT(device.vk_instance, &surface_create_info, NULL, &device.vk_surface));
 #else
-# error Unsupported platform
+    VkWaylandSurfaceCreateInfoKHR surface_create_info = {
+        .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
+        .display = wayland_display,
+        .surface = wayland_surface
+    };
+    CALL_VK(vkCreateWaylandSurfaceKHR(instance, &surface_create_info, NULL, &device.vk_surface));
 #endif
 
     uint32_t gpuCount = 0;
@@ -419,6 +422,8 @@ void delete_buffers(void) {
 }
 
 void load_shader_from_file(const char *filePath, VkShaderModule *shaderOut) {
+#ifdef __ANDROID__
+    // struct android_app *androidAppCtx = NULL;
     assert(androidAppCtx);
     AAsset *file = AAssetManager_open(androidAppCtx->activity->assetManager, filePath, AASSET_MODE_BUFFER);
     size_t fileLength = AAsset_getLength(file);
@@ -428,16 +433,17 @@ void load_shader_from_file(const char *filePath, VkShaderModule *shaderOut) {
     AAsset_read(file, fileContent, fileLength);
     AAsset_close(file);
 
-    VkShaderModuleCreateInfo shaderModuleCreateInfo = {
+    VkShaderModuleCreateInfo vk_shader_module_create_info = {
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             .pNext = NULL,
             .flags = 0,
             .codeSize = fileLength,
             .pCode = (const uint32_t *) fileContent,
     };
-    CALL_VK(vkCreateShaderModule(device.vk_device, &shaderModuleCreateInfo, NULL, shaderOut));
+    CALL_VK(vkCreateShaderModule(device.vk_device, &vk_shader_module_create_info, NULL, shaderOut));
 
     free(fileContent);
+#endif
 }
 
 void create_graphics_pipeline() {
@@ -635,14 +641,17 @@ void init_window(
         struct android_app *app
 #elif defined __APPLE__
         const CAMetalLayer* metal_layer
+#else
+        struct wl_surface* wayland_surface,
+        struct wl_surface* wayland_display
 #endif
 ) {
-    androidAppCtx = app;
-
+#ifdef __ANDROID__
     if (!load_vulkan_symbols()) {
         LOGW("Vulkan is unavailable, install vulkan and re-start");
         return;
     }
+#endif
 
     VkApplicationInfo app_info = {
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -659,6 +668,9 @@ void init_window(
             app->window,
 #elif defined __APPLE__
             metal_layer,
+#else
+            wayland_display,
+            wayland_surface,
 #endif
             &app_info);
 
@@ -788,21 +800,21 @@ void init_window(
 
     // We need to create a fence to be able, in the main loop, to wait for our
     // draw command(s) to finish before swapping the framebuffers
-    VkFenceCreateInfo fenceCreateInfo = {
+    VkFenceCreateInfo vk_fence_create_info = {
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
             .pNext = NULL,
             .flags = VK_FENCE_CREATE_SIGNALED_BIT,
     };
-    CALL_VK(vkCreateFence(device.vk_device, &fenceCreateInfo, NULL, &render.vk_fence));
+    CALL_VK(vkCreateFence(device.vk_device, &vk_fence_create_info, NULL, &render.vk_fence));
 
     // We need to create a semaphore to be able to wait, in the main loop, for our
     // framebuffer to be available for us before drawing.
-    VkSemaphoreCreateInfo semaphoreCreateInfo = {
+    VkSemaphoreCreateInfo vk_semaphore_create_info = {
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
             .pNext = NULL,
             .flags = 0,
     };
-    CALL_VK(vkCreateSemaphore(device.vk_device, &semaphoreCreateInfo, NULL, &render.vk_semaphore));
+    CALL_VK(vkCreateSemaphore(device.vk_device, &vk_semaphore_create_info, NULL, &render.vk_semaphore));
 
     device.initialized_ = true;
 }
