@@ -37,6 +37,9 @@ rustlib:
 	$(CARGO_BUILD_COMMAND)
 	rm $(RUST_LIB_DIR)/libvulkan_example.dylib
 
+c-ffi:
+	bindgen vulkan/ffi.h > src/ffi.rs
+
 rust-ffi:
 	@mkdir -p out/headers
 	cbindgen --config cbindgen.toml --output out/headers/rust-ffi.h

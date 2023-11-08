@@ -16,3 +16,4 @@ jniLibs
 local.properties
 out/
 target
+ffi.rs
