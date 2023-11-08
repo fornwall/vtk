@@ -2,7 +2,8 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <CoreVideo/CVDisplayLink.h>
 
-#include <rust-ffi.h>
+#include "rust-ffi.h"
+#include "vulkan_main.h"
 
 #include <MoltenVK/mvk_vulkan.h>
 // #include "../../Vulkan-Tools/cube/cube.c"
@@ -23,23 +24,31 @@
 -(void) viewWillAppear {
     [super viewWillAppear];
 
-    self.view.wantsLayer = YES;		// Back the view with a layer created by the makeBackingLayer method.
+    self.view.wantsLayer = YES; // Back the view with a layer created by the makeBackingLayer method.
+    printf("viewWillAppear\n");
+}
 
+- (void)viewDidAppear {
+    printf("viewDidAppear controller\n");
     // If this value is set to zero, the Custom will render frames until the window is closed.
     // If this value is not zero, it establishes a maximum number of frames that will be
     // rendered, and once this count has been reached, the Custom will stop rendering.
     // Once rendering is finished, the Custom will delay cleaning up Vulkan objects until
     // the window is closed.
     _maxFrameCount = 0;
-
-    // TODO: Setup vulkan
-    // Custom_main(&Custom, self.view.layer, argc, argv);
-
     _stop = NO;
     _frameCount = 0;
+
+    init_window(self.view.layer);
+
     CVDisplayLinkCreateWithActiveCGDisplays(&_displayLink);
     CVDisplayLinkSetOutputCallback(_displayLink, &DisplayLinkCallback, self);
     CVDisplayLinkStart(_displayLink);
+}
+
+-(void)loadView
+{
+    self.view = [[CustomView alloc] init];
 }
 
 -(void) viewDidDisappear {
@@ -50,8 +59,6 @@
 
     [super viewDidDisappear];
 }
-
-
 
 #pragma mark Display loop callback function
 
@@ -71,9 +78,11 @@ static CVReturn DisplayLinkCallback(
         // A pointer to app-defined data.
         void* display_link_context __attribute__((unused))) {
     CustomViewController* view_controller = (CustomViewController*) display_link_context;
-    if (!view_controller->_stop) {
+    if (view_controller->_stop == NO) {
         // TODO: Draw Custom_draw(&CustomVC->Custom);
-        view_controller->_stop = (view_controller->_maxFrameCount && ++view_controller->_frameCount >= view_controller->_maxFrameCount);
+        //printf("Is vulkan ready? %s\n", is_vulkan_ready() ? "yes" : "no");
+        if (is_vulkan_ready()) draw_frame();
+        //view_controller->_stop = (view_controller->_maxFrameCount && ++view_controller->_frameCount >= view_controller->_maxFrameCount);
     }
     return kCVReturnSuccess;
 }
@@ -94,9 +103,10 @@ static CVReturn DisplayLinkCallback(
 
 /** If the wantsLayer property is set to YES, this method will be invoked to return a layer instance. */
 -(CALayer*) makeBackingLayer {
-    CALayer* layer = [self.class.layerClass layer];
-    CGSize viewScale = [self convertSizeToBacking: CGSizeMake(1.0, 1.0)];
-    layer.contentsScale = MIN(viewScale.width, viewScale.height);
+    CAMetalLayer* layer = [self.class.layerClass layer];
+    //CGSize viewScale = [self convertSizeToBacking: CGSizeMake(1.0, 1.0)];
+    //layer.contentsScale = MIN(viewScale.width, viewScale.height);
+    printf("MAKE BACKING\n");
     return layer;
 }
 

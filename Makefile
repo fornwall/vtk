@@ -19,7 +19,8 @@ run:
 	RUST_BACKTRACE=1 cargo run
 
 android:
-	cargo ndk -t arm64-v8a -o ./android/app/src/main/jniLibs build --release
+	cargo ndk -t arm64-v8a -o ./platforms/android/app/src/main/jniLibs build --release
+	cd platforms/android && gradle assembleDebug
 
 out/shaders:
 	mkdir -p out/shaders
@@ -34,6 +35,7 @@ out/shaders/%.vert.spv : shaders/%.vert
 
 rustlib:
 	$(CARGO_BUILD_COMMAND)
+	rm $(RUST_LIB_DIR)/libvulkan_example.dylib
 
 rust-ffi:
 	@mkdir -p out/headers
@@ -41,7 +43,7 @@ rust-ffi:
 
 # ~/bin/vulkan-sdk/MoltenVK/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a
 mac: shaders rustlib rust-ffi
-	c++ -Wall -Wextra \
+	cc -Wall -Wextra -O2 \
 		platforms/mac/main_osx.m \
 		platforms/mac/CustomViewController.m \
 		vulkan/vulkan_main.m \
@@ -52,11 +54,13 @@ mac: shaders rustlib rust-ffi
 		-framework Metal \
 		-framework QuartzCore \
 		-I$(MOLTENVK_PATH)/include \
+		-Ivulkan/ \
 		-Iout/headers \
 		-L${HOME}/bin/vulkan-sdk/MoltenVK/MoltenVK.xcframework/macos-arm64_x86_64 \
-		-Ltarget/debug \
+		-L$(RUST_LIB_DIR) \
 		-lMoltenVK \
-		-lvulkan_example
+		-lvulkan_example \
+		-lc++
 	./out/main_osx
 
 clean:

@@ -236,7 +236,7 @@ void create_swap_chain() {
 
     uint32_t chosenFormat;
     for (chosenFormat = 0; chosenFormat < format_count; chosenFormat++) {
-        if (formats[chosenFormat].format == VK_FORMAT_R8G8B8A8_UNORM) break;
+        if (formats[chosenFormat].format == VK_FORMAT_B8G8R8A8_SRGB) break;
     }
     assert(chosenFormat < format_count);
 
@@ -247,7 +247,7 @@ void create_swap_chain() {
     CALL_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.vk_physical_device, device.vk_surface, &surfaceCap))
     assert(surfaceCap.supportedCompositeAlpha | VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR);
 
-    LOGE("minImageCount = %d", vk_surface_capabilities.minImageCount);
+    LOGE("vk_surface_capabilities.minImageCount = %d", vk_surface_capabilities.minImageCount);
     VkSwapchainCreateInfoKHR swapchainCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             .pNext = NULL,
@@ -443,6 +443,24 @@ void load_shader_from_file(const char *filePath, VkShaderModule *shaderOut) {
     CALL_VK(vkCreateShaderModule(device.vk_device, &vk_shader_module_create_info, NULL, shaderOut));
 
     free(fileContent);
+#else
+#define MAXBUFLEN 1000000
+    char source[MAXBUFLEN + 1];
+    FILE *fp = fopen(filePath, "r");
+    assert(fp != NULL);
+    size_t newLen = fread(source, sizeof(char), MAXBUFLEN, fp);
+    assert(ferror(fp) == 0);
+    source[newLen] = '\0';
+    printf("Size of %s = %d\n", filePath, newLen);
+    VkShaderModuleCreateInfo vk_shader_module_create_info = {
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .pNext = NULL,
+            .flags = 0,
+            .codeSize = newLen,
+            .pCode = (const uint32_t *) source,
+    };
+    CALL_VK(vkCreateShaderModule(device.vk_device, &vk_shader_module_create_info, NULL, shaderOut));
+    fclose(fp);
 #endif
 }
 
@@ -460,8 +478,8 @@ void create_graphics_pipeline() {
     CALL_VK(vkCreatePipelineLayout(device.vk_device, &vk_pipeline_layout_create_info, NULL, &gfxPipeline.vk_pipeline_layout));
 
     VkShaderModule vertexShader, fragmentShader;
-    load_shader_from_file("shaders/tri.vert.spv", &vertexShader);
-    load_shader_from_file("shaders/tri.frag.spv", &fragmentShader);
+    load_shader_from_file("out/shaders/triangle.vert.spv", &vertexShader);
+    load_shader_from_file("out/shaders/triangle.frag.spv", &fragmentShader);
 
     // Specify vertex and fragment shader stages
     VkPipelineShaderStageCreateInfo shader_stages[] = {

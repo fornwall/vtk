@@ -5,7 +5,7 @@ authors = ["Fredrik Fornwall <fredrik@fornwall.net>"]
 edition = "2021"
 
 [lib]
-crate-type = ["staticlib"]
+crate-type = ["staticlib", "dylib"]
 
 [dependencies]
 bitflags = "*"
