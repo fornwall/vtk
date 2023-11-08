@@ -859,27 +859,27 @@ void terminate_window() {
 
 void draw_frame() {
     CALL_VK(vkWaitForFences(device.vk_device, 1, &render.vk_fence, VK_TRUE, UINT64_MAX))
-    CALL_VK(vkResetFences(device.vk_device, 1, &render.vk_fence))
 
     uint32_t acquired_image_idx;
     VkResult acquire_result = vkAcquireNextImageKHR(device.vk_device, swapchain.vk_swapchain, UINT64_MAX, render.vk_semaphore, VK_NULL_HANDLE, &acquired_image_idx);
     switch (acquire_result) {
         case VK_SUCCESS:
             break;
+        case VK_ERROR_OUT_OF_DATE_KHR:
+            // We cannot present it - recreate and return.
+            // recreate_swap_chain();
+            break;
         case VK_SUBOPTIMAL_KHR:
+            // Ok to go ahead and present image - recreate after present.
             printf("VK_SUBOPTIMAL_KHR\n");
             break;
-        case VK_ERROR_DEVICE_LOST:
-            printf("Device lost\n");
-            assert(false);
-        case VK_ERROR_SURFACE_LOST_KHR:
-            printf("Surface lost\n");
-            assert(false);
         default:
             printf("vkAcquireNextImageKHR failed\n");
             assert(false);
             break;
     }
+
+    CALL_VK(vkResetFences(device.vk_device, 1, &render.vk_fence))
 
     VkPipelineStageFlags vk_pipeline_stage_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo submit_info = {
@@ -911,16 +911,11 @@ void draw_frame() {
         case VK_SUCCESS:
             break;
         case VK_SUBOPTIMAL_KHR:
-            printf("present_result VK_SUBOPTIMAL_KHR\n");
+        case VK_ERROR_OUT_OF_DATE_KHR:
+            // recreate_swap_chain();
             break;
-        case VK_ERROR_DEVICE_LOST:
-            printf("Device lost\n");
-            assert(false);
-        case VK_ERROR_SURFACE_LOST_KHR:
-            printf("Surface lost\n");
-            assert(false);
         default:
-            printf("vkAcquireNextImageKHR failed\n");
+            printf("vkQueuePresentKHR failed\n");
             assert(false);
             break;
     }
