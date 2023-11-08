@@ -845,10 +845,13 @@ bool is_vulkan_ready() {
     return device.initialized_;
 }
 
-void terminate_window() {
+void delete_command_buffers() {
     vkFreeCommandBuffers(device.vk_device, render.vk_command_pool, render.command_buffer_len, render.vk_command_buffers);
     free(render.vk_command_buffers);
+}
 
+void terminate_window() {
+    delete_command_buffers();
     vkDestroyCommandPool(device.vk_device, render.vk_command_pool, NULL);
     vkDestroyRenderPass(device.vk_device, render.vk_render_pass, NULL);
     delete_swap_chain();
@@ -866,7 +869,7 @@ void recreate_swap_chain() {
 
     delete_swap_chain();
     delete_graphics_pipeline();
-    // TODO: Not necessary delete_vertex_buffers();
+    delete_command_buffers();
 
     create_swap_chain();
     create_frame_buffers(render.vk_render_pass);
