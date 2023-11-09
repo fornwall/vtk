@@ -1,0 +1,7 @@
+[package]
+name = "shader-binding-generator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+naga = { git = "https://github.com/gfx-rs/wgpu", features = ["spv-in"] }
