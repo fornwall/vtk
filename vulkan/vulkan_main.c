@@ -379,8 +379,19 @@ void create_vertex_buffer() {
     // Create the triangle vertex buffer
 
     // Vertex positions
-    const float vertexData[] = {
-            -1.0f, -1.0f, 0.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+    const float vertex_data[] = {
+            // position[0]
+            -1.0f, -1.0f, 0.0f,
+            // color[0]
+            0.0f, 0.0f, 1.0f,
+            // position[1]
+            1.0f, -1.0f, 0.0f,
+            // color[1]
+            1.0f, 0.0f, 0.0f,
+            // position[2]
+            0.0f, 1.0f, 0.0f,
+            // color[2]
+            0.0f, 1.0f, 0.0f,
     };
 
     // Create a vertex buffer
@@ -388,15 +399,14 @@ void create_vertex_buffer() {
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             .pNext = NULL,
             .flags = 0,
-            .size = sizeof(vertexData),
+            .size = sizeof(vertex_data),
             .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .queueFamilyIndexCount = 1,
             .pQueueFamilyIndices = &device.queueFamilyIndex_,
     };
 
-    CALL_VK(vkCreateBuffer(device.vk_device, &createBufferInfo, NULL,
-                           &buffers.vk_buffer))
+    CALL_VK(vkCreateBuffer(device.vk_device, &createBufferInfo, NULL, &buffers.vk_buffer))
 
     VkMemoryRequirements memReq;
     vkGetBufferMemoryRequirements(device.vk_device, buffers.vk_buffer, &memReq);
@@ -421,7 +431,7 @@ void create_vertex_buffer() {
     void *data;
     CALL_VK(vkMapMemory(device.vk_device, deviceMemory, 0, vk_memory_allocation_info.allocationSize,
                         0, &data))
-    memcpy(data, vertexData, sizeof(vertexData));
+    memcpy(data, vertex_data, sizeof(vertex_data));
     vkUnmapMemory(device.vk_device, deviceMemory);
 
     CALL_VK(vkBindBufferMemory(device.vk_device, buffers.vk_buffer, deviceMemory, 0))
@@ -586,30 +596,37 @@ void create_graphics_pipeline() {
     };
 
     // Specify vertex input state
-    VkVertexInputBindingDescription vertex_input_bindings[] = {
+    VkVertexInputBindingDescription vk_vertex_input_binding_descriptions[] = {
             {
                     .binding = 0,
-                    .stride = 3 * sizeof(float),
+                    .stride = 6 * sizeof(float),
                     .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
             }
     };
 
-    VkVertexInputAttributeDescription vertex_input_attributes[] = {
+    VkVertexInputAttributeDescription vk_vertex_input_attribute_descriptions[] = {
             {
-                    .location = 0,
                     .binding = 0,
+                    .location = 0,
                     .format = VK_FORMAT_R32G32B32_SFLOAT,
                     .offset = 0,
+            },
+            {
+                    .binding = 0,
+                    .location = 1,
+                    .format = VK_FORMAT_R32G32B32_SFLOAT,
+                    // Skip the three position floats:
+                    .offset = 3*sizeof(float),
             }
     };
 
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
+    VkPipelineVertexInputStateCreateInfo vk_pipeline_vertex_input_state_create_info = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             .pNext = NULL,
-            .vertexBindingDescriptionCount = VK_WRAP_ARRAY_SIZE(vertex_input_bindings),
-            .pVertexBindingDescriptions = vertex_input_bindings,
-            .vertexAttributeDescriptionCount = VK_WRAP_ARRAY_SIZE(vertex_input_attributes),
-            .pVertexAttributeDescriptions = vertex_input_attributes,
+            .vertexBindingDescriptionCount = VK_WRAP_ARRAY_SIZE(vk_vertex_input_binding_descriptions),
+            .pVertexBindingDescriptions = vk_vertex_input_binding_descriptions,
+            .vertexAttributeDescriptionCount = VK_WRAP_ARRAY_SIZE(vk_vertex_input_attribute_descriptions),
+            .pVertexAttributeDescriptions = vk_vertex_input_attribute_descriptions,
     };
 
     VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
@@ -618,7 +635,7 @@ void create_graphics_pipeline() {
             .flags = 0,
             .stageCount = 2,
             .pStages = shader_stages,
-            .pVertexInputState = &vertexInputInfo,
+            .pVertexInputState = &vk_pipeline_vertex_input_state_create_info,
             .pInputAssemblyState = &inputAssemblyInfo,
             .pTessellationState = NULL,
             .pViewportState = &viewportInfo,
