@@ -46,7 +46,9 @@ rustlib:
 	rm $(RUST_LIB_DIR)/libvulkan_example.dylib
 
 c-ffi:
-	bindgen vulkan/ffi.h > src/ffi.rs
+	bindgen \
+		--rustified-enum MyEnum \
+		vulkan/ffi.h > src/ffi.rs
 
 rust-ffi:
 	@mkdir -p out/headers
