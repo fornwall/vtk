@@ -1,13 +1,21 @@
 CARGO_BUILD_COMMAND = cargo build
 GLSLC = glslc -I shaders --target-env=vulkan1.3
 MOLTENVK_PATH = ${HOME}/bin/vulkan-sdk/MoltenVK
+CC = cc -Wall -Wextra
+
+ifeq ($(SANITIZE),1)
+	CC += -fsanitize=address -fsanitize=undefined
+endif
 
 ifeq ($(RELEASE),1)
+	CC += -O2
 	RUST_LIB_DIR = target/release
 	CARGO_BUILD_COMMAND += --release
 else
+	CC += -g
 	RUST_LIB_DIR = target/debug
 endif
+
 
 install-dependencies:
 	brew install shaderc # For glslc
@@ -46,7 +54,7 @@ rust-ffi:
 
 # ~/bin/vulkan-sdk/MoltenVK/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a
 mac: shaders rustlib rust-ffi
-	cc -Wall -Wextra -O -g \
+	$(CC) \
 		platforms/mac/main_osx.m \
 		platforms/mac/CustomViewController.m \
 		vulkan/vulkan_main.m \
