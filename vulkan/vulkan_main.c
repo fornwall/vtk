@@ -483,6 +483,20 @@ void load_shader_from_file(const char *filePath, VkShaderModule *shaderOut) {
 #endif
 }
 
+VkShaderModule compile_shader(VkDevice a_device, uint8_t* bytes, size_t size) {
+    VkShaderModuleCreateInfo vk_shader_module_create_info = {
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .pNext = NULL,
+            .flags = 0,
+            .codeSize = size,
+            .pCode = (const uint32_t *) bytes,
+    };
+    VkShaderModule result;
+    CALL_VK(vkCreateShaderModule(a_device, &vk_shader_module_create_info, NULL, &result));
+    return result;
+}
+
+
 void create_graphics_pipeline() {
     memset(&gfxPipeline, 0, sizeof(gfxPipeline));
     // Create pipeline layout (empty)
@@ -604,7 +618,7 @@ void create_graphics_pipeline() {
             }
     };
 
-    VkVertexInputAttributeDescription vk_vertex_input_attribute_descriptions[] = {
+    VkVertexInputAttributeDescription vk_vertex_input_attribute_descriptions [] = {
             {
                     .binding = 0,
                     .location = 0,
@@ -615,9 +629,8 @@ void create_graphics_pipeline() {
                     .binding = 0,
                     .location = 1,
                     .format = VK_FORMAT_R32G32B32_SFLOAT,
-                    // Skip the three position floats:
-                    .offset = 3*sizeof(float),
-            }
+                    .offset = 12,
+            },
     };
 
     VkPipelineVertexInputStateCreateInfo vk_pipeline_vertex_input_state_create_info = {

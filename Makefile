@@ -54,6 +54,9 @@ rust-ffi:
 	@mkdir -p out/headers
 	cbindgen --config cbindgen.toml --output out/headers/rust-ffi.h
 
+rust-shaders: rust-ffi
+	 ./shader-rust-gen > src/shaders.rs
+
 # ~/bin/vulkan-sdk/MoltenVK/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a
 mac: shaders rustlib rust-ffi
 	$(CC) \

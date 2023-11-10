@@ -14,6 +14,7 @@ int main(int _argc __attribute__((unused)), const char * _argv[] __attribute__((
     //CustomView* view = [[CustomView alloc] initWithFrame: frame];
     NSView* view = viewController.view;
 
+    //NSUInteger windowStyle = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
     NSUInteger windowStyle = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
     id window = [[[NSWindow alloc] initWithContentRect:frame
                                              styleMask:windowStyle
@@ -28,9 +29,14 @@ int main(int _argc __attribute__((unused)), const char * _argv[] __attribute__((
 
     [app activateIgnoringOtherApps:YES];
     [window makeFirstResponder: view];
-    //[window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
+
     [((NSWindow*)window) center];
-    //[app setPresentationOptions:NSFullScreenWindowMask];
+
+    // Locked down full screen:
+    // [app setPresentationOptions:NSFullScreenWindowMask];
+    // Normal full screen:
+    // [window toggleFullScreen: nil];
+
     [app run];
 
     return 0;

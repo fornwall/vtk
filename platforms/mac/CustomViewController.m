@@ -2,7 +2,7 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <CoreVideo/CVDisplayLink.h>
 
-#include "rust-ffi.h"
+#include "rustffi.h"
 #include "vulkan_main.h"
 
 #include <MoltenVK/mvk_vulkan.h>
@@ -224,5 +224,16 @@ void update_pressed_keys(Key* pressed_keys, uint32_t mac_identifier, bool presse
         add_held_keys(Key_Control);
   }
 }
+
+- (void)mouseDown:(NSEvent *)theEvent {
+    NSPoint clicked_position = [theEvent locationInWindow]; // [self convertPoint:[theEvent locationInWindow] fromView:nil];
+    printf("Clicked: %f, %f\n", clicked_position.x, clicked_position.y);
+}
+
+- (void)mouseUp:(NSEvent *)theEvent {
+    // TODO
+}
+
+
 
 @end
