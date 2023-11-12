@@ -45,22 +45,23 @@ rustlib:
 	$(CARGO_BUILD_COMMAND)
 	rm $(RUST_LIB_DIR)/libvulkan_example.dylib
 
-c-ffi:
+cffi:
 	bindgen \
-		--rustified-enum MyEnum \
-		vulkan/ffi.h > src/ffi.rs
+		--rustified-enum VkFormat \
+		vulkan/cffi.h > src/cffi.rs
 
-rust-ffi:
+rustffi:
 	@mkdir -p out/headers
-	cbindgen --config cbindgen.toml --output out/headers/rust-ffi.h
+	cbindgen --config cbindgen.toml --output out/headers/rustffi.h src/rustffi.rs
 
-rust-shaders: rust-ffi
+rust-shaders: rustffi
 	 ./shader-rust-gen > src/shaders.rs
 
 # ~/bin/vulkan-sdk/MoltenVK/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a
-mac: shaders rustlib rust-ffi
+mac: shaders rustlib rustffi
 	$(CC) \
 		platforms/mac/main_osx.m \
+		platforms/mac/gamepads.c \
 		platforms/mac/CustomViewController.m \
 		vulkan/vulkan_main.m \
 		-o out/main_osx \
@@ -69,6 +70,7 @@ mac: shaders rustlib rust-ffi
 		-framework IOSurface \
 		-framework Metal \
 		-framework QuartzCore \
+		-framework ForceFeedback \
 		-I$(MOLTENVK_PATH)/include \
 		-Ivulkan/ \
 		-Iout/headers \
@@ -79,7 +81,19 @@ mac: shaders rustlib rust-ffi
 		-lc++
 	./out/main_osx
 
+wayland: shaders rustlib rustffi
+	$(CC) \
+		platforms/wayland/main.c \
+		vulkan/vulkan_main.c \
+		-o out/wayland \
+		-Ivulkan/ \
+		-Iout/headers \
+		-L$(RUST_LIB_DIR) \
+		-lvulkan_example \
+		-lc++
+	./out/wayland
+
 clean:
 	rm -Rf out
 
-.PHONY: android rustlib run mac shaders install-dependencies clean
+.PHONY: android rustlib run mac shaders install-dependencies clean wayland
