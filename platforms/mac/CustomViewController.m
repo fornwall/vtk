@@ -2,6 +2,9 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <CoreVideo/CVDisplayLink.h>
 
+// Gamepad - but extract to own files
+#import <IOKit/hid/IOHIDLib.h>
+
 #include "rustffi.h"
 #include "vulkan_main.h"
 
@@ -34,6 +37,7 @@
     _maxFrameCount = 0;
     _stop = NO;
     _frameCount = 0;
+
 
     init_window((const CAMetalLayer*) self.view.layer);
 
@@ -84,7 +88,6 @@ static CVReturn DisplayLinkCallback(
 }
 
 @end
-
 
 #pragma mark -
 #pragma mark CustomView

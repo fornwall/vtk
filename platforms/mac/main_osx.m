@@ -26,16 +26,15 @@ int main(int _argc __attribute__((unused)), const char * _argv[] __attribute__((
     [window setContentView:view];
     [window setTitle:@"Vulkan"];
 
-
     [app activateIgnoringOtherApps:YES];
     [window makeFirstResponder: view];
 
     [((NSWindow*)window) center];
 
     // Locked down full screen:
-    // [app setPresentationOptions:NSFullScreenWindowMask];
+    //[app setPresentationOptions:NSFullScreenWindowMask];
     // Normal full screen:
-    // [window toggleFullScreen: nil];
+    //[window toggleFullScreen: nil];
 
     [app run];
 
