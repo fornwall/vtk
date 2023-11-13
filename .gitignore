@@ -16,5 +16,6 @@ jniLibs
 local.properties
 out/
 target
-ffi.rs
+cffi.rs
+rustffi.c
 shaders.rs

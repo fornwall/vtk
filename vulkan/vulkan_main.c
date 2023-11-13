@@ -6,7 +6,9 @@
 #include <string.h>
 
 #ifdef __ANDROID__
+
 #include <android/log.h>
+
 static const char *kTAG = "vulkan-example";
 #define VA_ARGS(...) , ##__VA_ARGS__
 # define LOGI(...) \
@@ -72,7 +74,8 @@ struct VulkanSwapchainInfo {
 struct VulkanSwapchainInfo swapchain;
 
 struct VulkanBufferInfo {
-    VkBuffer vk_buffer;
+    VkBuffer vk_vertex_position_buffer;
+    VkBuffer vk_vertex_color_buffer;
 };
 
 struct VulkanBufferInfo buffers;
@@ -144,31 +147,6 @@ void create_vulkan_device(
 
     CALL_VK(vkCreateInstance(&instance_create_info, NULL, &device.vk_instance));
 
-#ifdef __ANDROID__
-    VkAndroidSurfaceCreateInfoKHR surface_create_info = {
-            .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
-            .pNext = NULL,
-            .flags = 0,
-            .window = native_window
-    };
-    CALL_VK(vkCreateAndroidSurfaceKHR(device.vk_instance, &surface_create_info, NULL, &device.vk_surface));
-#elif defined __APPLE__
-    VkMetalSurfaceCreateInfoEXT surface_create_info = {
-            .sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT,
-            .pNext = NULL,
-            .flags = 0,
-            .pLayer = metal_layer
-    };
-    CALL_VK(vkCreateMetalSurfaceEXT(device.vk_instance, &surface_create_info, NULL, &device.vk_surface));
-#else
-    VkWaylandSurfaceCreateInfoKHR surface_create_info = {
-        .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
-        .display = wayland_display,
-        .surface = wayland_surface
-    };
-    CALL_VK(vkCreateWaylandSurfaceKHR(instance, &surface_create_info, NULL, &device.vk_surface));
-#endif
-
     uint32_t gpuCount = 0;
     CALL_VK(vkEnumeratePhysicalDevices(device.vk_instance, &gpuCount, NULL));
 
@@ -222,6 +200,31 @@ void create_vulkan_device(
 
     CALL_VK(vkCreateDevice(device.vk_physical_device, &deviceCreateInfo, NULL, &device.vk_device));
     vkGetDeviceQueue(device.vk_device, device.queueFamilyIndex_, 0, &device.vk_queue);
+
+#ifdef __ANDROID__
+    VkAndroidSurfaceCreateInfoKHR surface_create_info = {
+            .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
+            .pNext = NULL,
+            .flags = 0,
+            .window = native_window
+    };
+    CALL_VK(vkCreateAndroidSurfaceKHR(device.vk_instance, &surface_create_info, NULL, &device.vk_surface));
+#elif defined __APPLE__
+    VkMetalSurfaceCreateInfoEXT surface_create_info = {
+            .sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT,
+            .pNext = NULL,
+            .flags = 0,
+            .pLayer = metal_layer
+    };
+    CALL_VK(vkCreateMetalSurfaceEXT(device.vk_instance, &surface_create_info, NULL, &device.vk_surface));
+#else
+    VkWaylandSurfaceCreateInfoKHR surface_create_info = {
+        .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
+        .display = wayland_display,
+        .surface = wayland_surface
+    };
+    CALL_VK(vkCreateWaylandSurfaceKHR(instance, &surface_create_info, NULL, &device.vk_surface));
+#endif
 }
 
 void create_swap_chain() {
@@ -379,66 +382,76 @@ void create_vertex_buffer() {
     // Create the triangle vertex buffer
 
     // Vertex positions
-    const float vertex_data[] = {
+    const float vertex_position_data[] = {
             // position[0]
             -1.0f, -1.0f, 0.0f,
-            // color[0]
-            0.0f, 0.0f, 1.0f,
             // position[1]
             1.0f, -1.0f, 0.0f,
-            // color[1]
-            1.0f, 0.0f, 0.0f,
             // position[2]
             0.0f, 1.0f, 0.0f,
-            // color[2]
-            0.0f, 1.0f, 0.0f,
+    };
+    const float vertex_color_data[] = {
+            1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f,
+            0.0f, 0.0f, 1.0f,
     };
 
-    // Create a vertex buffer
-    VkBufferCreateInfo createBufferInfo = {
-            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-            .pNext = NULL,
-            .flags = 0,
-            .size = sizeof(vertex_data),
-            .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-            .queueFamilyIndexCount = 1,
-            .pQueueFamilyIndices = &device.queueFamilyIndex_,
+    VkBuffer* new_buffers[2] = {
+            &buffers.vk_vertex_position_buffer,
+            &buffers.vk_vertex_color_buffer,
     };
 
-    CALL_VK(vkCreateBuffer(device.vk_device, &createBufferInfo, NULL, &buffers.vk_buffer))
-
-    VkMemoryRequirements memReq;
-    vkGetBufferMemoryRequirements(device.vk_device, buffers.vk_buffer, &memReq);
-
-    VkMemoryAllocateInfo vk_memory_allocation_info = {
-            .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-            .pNext = NULL,
-            .allocationSize = memReq.size,
-            .memoryTypeIndex = 0,  // Memory type assigned in the next step
-    };
-
-    // Assign the proper memory type for that buffer
-    MapMemoryTypeToIndex(memReq.memoryTypeBits,
-                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                         &vk_memory_allocation_info.memoryTypeIndex);
-
-    // Allocate memory for the buffer
     VkDeviceMemory deviceMemory;
-    CALL_VK(vkAllocateMemory(device.vk_device, &vk_memory_allocation_info, NULL, &deviceMemory))
-
     void *data;
-    CALL_VK(vkMapMemory(device.vk_device, deviceMemory, 0, vk_memory_allocation_info.allocationSize,
-                        0, &data))
-    memcpy(data, vertex_data, sizeof(vertex_data));
-    vkUnmapMemory(device.vk_device, deviceMemory);
 
-    CALL_VK(vkBindBufferMemory(device.vk_device, buffers.vk_buffer, deviceMemory, 0))
+    for (int i = 0; i < 2; i++) {
+        // Create a vertex buffer
+        VkBufferCreateInfo createBufferInfo = {
+                .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                .pNext = NULL,
+                .flags = 0,
+                .size = sizeof(vertex_position_data), // TODO: Using same for color and position
+                .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+                .queueFamilyIndexCount = 1,
+                .pQueueFamilyIndices = &device.queueFamilyIndex_,
+        };
+
+        CALL_VK(vkCreateBuffer(device.vk_device, &createBufferInfo, NULL, new_buffers[i]))
+
+        VkMemoryRequirements memReq;
+        vkGetBufferMemoryRequirements(device.vk_device, *new_buffers[i], &memReq);
+        if (i == 0) {
+            VkMemoryAllocateInfo vk_memory_allocation_info = {
+                    .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                    .pNext = NULL,
+                    .allocationSize = memReq.size * 10, // TODO: hack, should allocate more
+                    .memoryTypeIndex = 0,  // Memory type assigned in the next step
+            };
+
+            // Assign the proper memory type for that buffer
+            MapMemoryTypeToIndex(memReq.memoryTypeBits,
+                                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                 &vk_memory_allocation_info.memoryTypeIndex);
+
+            // Allocate memory for the buffer
+            CALL_VK(vkAllocateMemory(device.vk_device, &vk_memory_allocation_info, NULL, &deviceMemory))
+            CALL_VK(vkMapMemory(device.vk_device, deviceMemory, 0, vk_memory_allocation_info.allocationSize, 0, &data))
+        }
+
+        size_t buffer_offset = ((i == 0) ? 0 : sizeof(vertex_position_data));
+        CALL_VK(vkBindBufferMemory(device.vk_device, *new_buffers[i], deviceMemory, buffer_offset))
+        memcpy(data + buffer_offset, (i == 0) ? vertex_position_data : vertex_color_data,
+               sizeof(vertex_position_data)); // TODO: using position for size for both
+    }
+
+    vkUnmapMemory(device.vk_device, deviceMemory);
 }
 
 void delete_vertex_buffers(void) {
-    vkDestroyBuffer(device.vk_device, buffers.vk_buffer, NULL);
+    vkDestroyBuffer(device.vk_device, buffers.vk_vertex_position_buffer, NULL);
+    vkDestroyBuffer(device.vk_device, buffers.vk_vertex_color_buffer, NULL);
 }
 
 void load_shader_from_file(const char *filePath, VkShaderModule *shaderOut) {
@@ -483,7 +496,7 @@ void load_shader_from_file(const char *filePath, VkShaderModule *shaderOut) {
 #endif
 }
 
-VkShaderModule compile_shader(VkDevice a_device, uint8_t* bytes, size_t size) {
+VkShaderModule compile_shader(VkDevice a_device, uint8_t *bytes, size_t size) {
     VkShaderModuleCreateInfo vk_shader_module_create_info = {
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             .pNext = NULL,
@@ -613,12 +626,17 @@ void create_graphics_pipeline() {
     VkVertexInputBindingDescription vk_vertex_input_binding_descriptions[] = {
             {
                     .binding = 0,
-                    .stride = 6 * sizeof(float),
+                    .stride = 3 * sizeof(float),
+                    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+            },
+            {
+                    .binding = 1,
+                    .stride = 3 * sizeof(float),
                     .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
             }
     };
 
-    VkVertexInputAttributeDescription vk_vertex_input_attribute_descriptions [] = {
+    VkVertexInputAttributeDescription vk_vertex_input_attribute_descriptions[] = {
             {
                     .binding = 0,
                     .location = 0,
@@ -626,10 +644,10 @@ void create_graphics_pipeline() {
                     .offset = 0,
             },
             {
-                    .binding = 0,
+                    .binding = 1,
                     .location = 1,
                     .format = VK_FORMAT_R32G32B32_SFLOAT,
-                    .offset = 12,
+                    .offset = 0,
             },
     };
 
@@ -666,7 +684,8 @@ void create_graphics_pipeline() {
 
     // VkPipelineCacheCreateInfo pipelineCacheInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO, .pNext = NULL, .flags = 0,  // reserved, must be 0 .initialDataSize = 0, .pInitialData = NULL, };
     //CALL_VK(vkCreatePipelineCache(device.vk_device, &pipelineCacheInfo, NULL, &gfxPipeline.vk_pipeline_cache));
-    CALL_VK(vkCreateGraphicsPipelines(device.vk_device, NULL /*gfxPipeline.vk_pipeline_cache*/, 1, &pipelineCreateInfo, NULL, &gfxPipeline.vk_pipeline))
+    CALL_VK(vkCreateGraphicsPipelines(device.vk_device, NULL /*gfxPipeline.vk_pipeline_cache*/, 1, &pipelineCreateInfo, NULL,
+                                      &gfxPipeline.vk_pipeline))
 
     // We don't need the shaders anymore, we can release their memory
     vkDestroyShaderModule(device.vk_device, vertexShader, NULL);
@@ -722,9 +741,11 @@ void create_command_buffers() {
             vkCmdBindPipeline(render.vk_command_buffers[bufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, gfxPipeline.vk_pipeline);
 
             uint32_t first_binding = 0;
-            uint32_t binding_count = 1;
-            VkDeviceSize buffer_offset = 0;
-            vkCmdBindVertexBuffers(render.vk_command_buffers[bufferIndex], first_binding, binding_count, &buffers.vk_buffer, &buffer_offset);
+            VkBuffer new_buffers[2] = {buffers.vk_vertex_position_buffer, buffers.vk_vertex_color_buffer};
+            uint32_t binding_count = 2;
+            VkDeviceSize buffer_offsets[2] = {0, 0};
+            vkCmdBindVertexBuffers(render.vk_command_buffers[bufferIndex], first_binding, binding_count, new_buffers,
+                                   buffer_offsets);
 
             uint32_t vertex_count = 3;
             uint32_t instance_count = 1;
@@ -911,7 +932,8 @@ void draw_frame() {
     CALL_VK(vkWaitForFences(device.vk_device, 1, &render.vk_fence, VK_TRUE, UINT64_MAX))
 
     uint32_t acquired_image_idx;
-    VkResult acquire_result = vkAcquireNextImageKHR(device.vk_device, swapchain.vk_swapchain, UINT64_MAX, render.vk_semaphore, VK_NULL_HANDLE, &acquired_image_idx);
+    VkResult acquire_result = vkAcquireNextImageKHR(device.vk_device, swapchain.vk_swapchain, UINT64_MAX, render.vk_semaphore,
+                                                    VK_NULL_HANDLE, &acquired_image_idx);
     switch (acquire_result) {
         case VK_SUCCESS:
             break;

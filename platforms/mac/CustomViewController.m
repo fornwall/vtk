@@ -205,7 +205,7 @@ void update_pressed_keys(Key* pressed_keys, uint32_t mac_identifier, bool presse
         break;
     case 'q':
         if ((theEvent.modifierFlags & NSEventModifierFlagCommand) == NSEventModifierFlagCommand) {
-            exit(0);
+            [[self window] close];
         }
         break;
     //pressedKeys.insert( pressedKey );

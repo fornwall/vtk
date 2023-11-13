@@ -45,20 +45,16 @@ rustlib:
 	$(CARGO_BUILD_COMMAND)
 	rm $(RUST_LIB_DIR)/libvulkan_example.dylib
 
-cffi:
-	bindgen \
-		--rustified-enum VkFormat \
-		vulkan/cffi.h > src/cffi.rs
-
-rustffi:
+ffi:
+	bindgen --rustified-enum VkFormat vulkan/cffi.h > src/cffi.rs
 	@mkdir -p out/headers
 	cbindgen --config cbindgen.toml --output out/headers/rustffi.h src/rustffi.rs
 
-rust-shaders: rustffi
+rust-shaders: ffi
 	 ./shader-rust-gen > src/shaders.rs
 
 # ~/bin/vulkan-sdk/MoltenVK/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a
-mac: shaders rustlib rustffi
+mac: shaders rustlib ffi
 	$(CC) \
 		platforms/mac/main_osx.m \
 		platforms/mac/gamepads.c \
@@ -81,7 +77,7 @@ mac: shaders rustlib rustffi
 		-lc++
 	./out/main_osx
 
-wayland: shaders rustlib rustffi
+wayland: shaders rustlib ffi
 	$(CC) \
 		platforms/wayland/main.c \
 		vulkan/vulkan_main.c \
@@ -96,4 +92,4 @@ wayland: shaders rustlib rustffi
 clean:
 	rm -Rf out
 
-.PHONY: android rustlib run mac shaders install-dependencies clean wayland
+.PHONY: android rustlib run mac shaders install-dependencies clean wayland ffi
