@@ -35,15 +35,3 @@ impl KeyInput {
 }
 
 struct TickInput {}
-
-struct Application {}
-
-impl Application {
-    fn on_tick(&self) {
-        // TODO
-    }
-
-    fn render_frame(&self) {
-        // TODO
-    }
-}

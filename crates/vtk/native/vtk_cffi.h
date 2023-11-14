@@ -7,7 +7,7 @@
 
 struct VtkApplication {
     /** Null-terminated, static string. <div rustbindgen private> */
-    void* platform_app;
+    void* platform_specific;
 };
 
 struct VtkDevice {

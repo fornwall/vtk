@@ -13,7 +13,7 @@ _Bool vtk_application_init(struct VtkApplication* application) {
     struct VtkMacApplication* vtk_mac_application = malloc(sizeof(struct VtkMacApplication));
     vtk_mac_application->ns_application = ns_application,
 
-    application->platform_app = vtk_mac_application;
+    application->platform_specific = vtk_mac_application;
 
     return true;
 }
