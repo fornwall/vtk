@@ -232,8 +232,10 @@ mod xcframework {
     }
 }
 
+#[cfg(target_os = "macos")]
 pub const MOLTEN_VK_VERSION: &str = "1.2.6";
 
+#[cfg(target_os = "macos")]
 pub(crate) fn download_prebuilt_molten<P: AsRef<Path>>(target_dir: &P) {
     use std::process::Command;
 
@@ -347,6 +349,7 @@ fn main() {
         println!("cargo:rustc-link-search=native={}", project_dir.display());
 
         cc.include(&include_dir);
+        cc.file("native/platforms/mac/vtk_mac.m");
         cc.file("native/platforms/mac/CustomViewController.m");
     }
 

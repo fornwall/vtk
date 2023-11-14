@@ -4,7 +4,7 @@ mod rustffi;
 pub use cffi::*;
 use rustffi::Key;
 
-impl VulkanDevice {
+impl VtkDevice {
     pub fn new() -> Self {
         let mut result = Self {
             initialized: false,
@@ -14,7 +14,7 @@ impl VulkanDevice {
             queue_family_index: 0,
             vk_queue: std::ptr::null_mut(),
         };
-        let ok = unsafe { init_vulkan_device(&mut result as *mut Self) };
+        let ok = unsafe { vtk_device_init(&mut result as *mut Self) };
         assert!(ok);
         result
     }

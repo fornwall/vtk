@@ -7,7 +7,7 @@
 #include "vtk_cffi.h"
 #include "vtk_log.h"
 
-_Bool init_vulkan_device(struct VulkanDevice* device)
+_Bool vtk_device_init(struct VtkDevice* device)
 {
 #ifdef __ANDROID__
     if (!load_vulkan_symbols()) {
