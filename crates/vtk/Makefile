@@ -46,7 +46,7 @@ rustlib:
 	rm $(RUST_LIB_DIR)/libvulkan_example.dylib
 
 ffi:
-	(echo '#![allow(non_snake_case)]'; echo '#![allow(non_upper_case_globals)]'; echo '#![allow(non_camel_case_types)]'; bindgen --rustified-enum VkFormat vulkan/vtk_cffi.h) > src/cffi.rs
+	(echo '#![allow(non_snake_case)]'; echo '#![allow(non_upper_case_globals)]'; echo '#![allow(non_camel_case_types)]'; bindgen --rustified-enum VkFormat native/vtk_cffi.h) > src/cffi.rs
 	@mkdir -p out/headers
 	cbindgen --config cbindgen.toml --output out/headers/rustffi.h src/rustffi.rs
 

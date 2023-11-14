@@ -1,7 +1,7 @@
 #import "Cocoa/Cocoa.h"
 #import "CustomViewController.h"
 
-int main(int _argc __attribute__((unused)), const char * _argv[] __attribute__((unused)))
+int main()
 {
     [NSAutoreleasePool new];
 

@@ -5,6 +5,11 @@
 #include "vtk_vulkan.h"
 #endif
 
+struct VulkanApplication {
+    /** Null-terminated, static string. <div rustbindgen private> */
+    void* platform_app;
+};
+
 struct VulkanDevice {
     _Bool initialized;
     VkInstance vk_instance;
@@ -14,10 +19,14 @@ struct VulkanDevice {
     VkQueue vk_queue;
 };
 
+struct VulkanWindow {
+    uint32_t width;
+    uint32_t height;
+    VkSurfaceKHR vk_surface;
+    VkSwapchainKHR vk_swapchain;
+};
+
+/** Null-terminated, static string. <div rustbindgen private> */
 VkShaderModule compile_shader(VkDevice device, uint8_t const* bytes, size_t size);
 
 _Bool init_vulkan_device(struct VulkanDevice* device);
-
-struct VulkanWindow {
-    VkSurfaceKHR vk_surface;
-};

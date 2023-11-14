@@ -270,6 +270,36 @@ pub(crate) fn download_prebuilt_molten<P: AsRef<Path>>(target_dir: &P) {
 fn main() {
     let mut cc = cc::Build::new();
 
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+
+    // bindgen - see https://rust-lang.github.io/rust-bindgen/tutorial-3.html
+    let bindings = bindgen::Builder::default()
+        // The input header we would like to generate bindings for.
+        .header("native/vtk_cffi.h")
+        // Tell cargo to invalidate the built crate whenever any of the included header files changed.
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        // Finish the builder and generate the bindings.
+        .generate()
+        // Unwrap the Result and panic on failure.
+        .expect("Unable to generate bindings");
+    // Write the bindings to the $OUT_DIR/bindings.rs file.
+    let out_path = PathBuf::from(&out_dir);
+    bindings
+        .write_to_file(out_path.join("cffi_bindings.rs"))
+        .expect("Couldn't write bindings!");
+
+    // cbindgen - see https://michael-f-bryan.github.io/rust-ffi-guide/cbindgen.html
+    let generated_headers_dir = format!("{}/headers", out_dir);
+    cc.include(&generated_headers_dir);
+    let output_file = format!("{}/rustffi.h", generated_headers_dir);
+    let mut cbindgen_config = cbindgen::Config::default();
+    cbindgen_config.language = cbindgen::Language::C;
+    cbindgen_config.macro_expansion.bitflags = true;
+    cbindgen::generate_with_config(&crate_dir, cbindgen_config)
+        .unwrap()
+        .write_to_file(&output_file);
+
     #[cfg(target_os = "macos")]
     {
         let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
@@ -278,8 +308,8 @@ fn main() {
         }
         let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
 
-        let target_dir = Path::new(&std::env::var("OUT_DIR").unwrap())
-            .join(format!("Prebuilt-MoltenVK-{}", MOLTEN_VK_VERSION));
+        let target_dir =
+            Path::new(&out_dir).join(format!("Prebuilt-MoltenVK-{}", MOLTEN_VK_VERSION));
         download_prebuilt_molten(&target_dir);
         let mut pb = PathBuf::from(
             std::env::var("CARGO_MANIFEST_DIR").expect("unable to find env:CARGO_MANIFEST_DIR"),
@@ -288,7 +318,6 @@ fn main() {
         pb.push("MoltenVK/MoltenVK/");
         let mut include_dir = pb.clone();
         include_dir.push("include");
-        cc.include(&include_dir);
         pb.push("MoltenVK.xcframework");
         let mut project_dir = pb;
         let xcframework = xcframework::XcFramework::parse(&project_dir)
@@ -314,7 +343,11 @@ fn main() {
         let lib_path = native_libs.get(&id).expect("Library was not found");
         let lib_dir = lib_path.parent().unwrap();
         project_dir.push(lib_dir);
+
         println!("cargo:rustc-link-search=native={}", project_dir.display());
+
+        cc.include(&include_dir);
+        cc.file("native/platforms/mac/CustomViewController.m");
     }
 
     println!("cargo:rustc-link-lib=framework=Metal");
@@ -325,6 +358,7 @@ fn main() {
     println!("cargo:rustc-link-lib=dylib=c++");
     println!("cargo:rustc-link-lib=static=MoltenVK");
 
+    cc.include("native/");
     cc.file("native/vtk_cffi.c");
     cc.compile("foo");
 }

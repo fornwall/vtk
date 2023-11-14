@@ -13,6 +13,8 @@ glam = "*"
 
 [build-dependencies]
 cc = "1.0"
+cbindgen = "0"
+bindgen = "0"
 
 [target.'cfg(target_os = "macos")'.build-dependencies]
 anyhow = "1.0"
