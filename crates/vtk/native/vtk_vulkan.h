@@ -1,3 +1,5 @@
+// vtk_vulkan.h: Bindings to vulkan exposed to Rust.
+
 typedef unsigned char uint8_t;
 typedef unsigned long size_t;
 typedef unsigned int uint32_t;
@@ -333,20 +335,3 @@ enum VkFormat {
     VK_FORMAT_A4B4G4R4_UNORM_PACK16_EXT = VK_FORMAT_A4B4G4R4_UNORM_PACK16,
     VK_FORMAT_MAX_ENUM = 0x7FFFFFFF
 };
-
-VkShaderModule compile_shader(VkDevice device, uint8_t const* bytes, size_t size);
-
-struct VulkanDevice {
-    _Bool initialized_;
-
-    VkInstance vk_instance;
-    VkPhysicalDevice vk_physical_device;
-    VkDevice vk_device;
-    uint32_t queueFamilyIndex_;
-};
-
-struct VulkanWindow {
-    VkSurfaceKHR vk_surface;
-    VkQueue vk_queue;
-};
-

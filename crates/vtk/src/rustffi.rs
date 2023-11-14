@@ -49,7 +49,3 @@ pub extern "C" fn add_held_keys(held_keys: Key) {
         }
     }
 }
-
-pub fn do_stuff() {
-    let bytes = include_bytes!("../out/shaders/triangle.vert.spv");
-}

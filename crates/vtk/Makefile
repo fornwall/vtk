@@ -46,7 +46,7 @@ rustlib:
 	rm $(RUST_LIB_DIR)/libvulkan_example.dylib
 
 ffi:
-	bindgen --rustified-enum VkFormat vulkan/cffi.h > src/cffi.rs
+	(echo '#![allow(non_snake_case)]'; echo '#![allow(non_upper_case_globals)]'; echo '#![allow(non_camel_case_types)]'; bindgen --rustified-enum VkFormat vulkan/vtk_cffi.h) > src/cffi.rs
 	@mkdir -p out/headers
 	cbindgen --config cbindgen.toml --output out/headers/rustffi.h src/rustffi.rs
 
@@ -60,6 +60,7 @@ mac: shaders rustlib ffi
 		platforms/mac/gamepads.c \
 		platforms/mac/CustomViewController.m \
 		vulkan/vulkan_main.m \
+		vulkan/vtk_cffi.c \
 		-o out/main_osx \
 		-framework Cocoa \
 		-framework IOKit \
