@@ -37,12 +37,17 @@ struct VtkWindowNative {
     VkSurfaceKHR vk_surface;
     enum VkFormat vk_surface_format;
 
+    VkRenderPass vk_surface_render_pass;
+    VkPipelineLayout vk_pipeline_layout;
+    VkPipeline vk_pipeline;
+
     uint8_t num_swap_chain_images;
     VkSwapchainKHR vk_swapchain;
     VkImage* vk_swap_chain_images;
     VkImageView *vk_swap_chain_images_views;
     struct VkExtent2D vk_extent_2d;
     VkFramebuffer *vk_swap_chain_framebuffers;
+
 
 #ifdef __APPLE__
     /** Platform-specific data. <div rustbindgen private> */

@@ -3,9 +3,9 @@
 
 _Bool vtk_window_init_platform(struct VtkWindowNative* vtk_window);
 
-void vtk_create_swap_chain(struct VtkWindowNative* vtk_window);
+void vtk_setup_window_rendering(struct VtkWindowNative* vtk_window);
 
-void vtk_delete_swap_chain(struct VtkWindowNative* vtk_window);
+void vtk_tear_down_window_rendering(struct VtkWindowNative* vtk_window);
 
 void vtk_draw_frame(struct VtkWindowNative* vtk_window);
 

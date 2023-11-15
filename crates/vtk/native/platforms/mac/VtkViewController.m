@@ -47,7 +47,7 @@
 
     struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
     CALL_VK(vkCreateMetalSurfaceEXT(vtk_device->vk_instance, &surface_create_info, NULL, &vtk_window->vk_surface));
-    vtk_create_swap_chain(vtk_window);
+    vtk_setup_window_rendering(vtk_window);
     //init_window((const CAMetalLayer*) self.view.layer);
 
     CVDisplayLinkCreateWithActiveCGDisplays(&_displayLink);
