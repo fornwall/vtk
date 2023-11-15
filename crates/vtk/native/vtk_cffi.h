@@ -42,6 +42,7 @@ struct VtkWindowNative {
 
     VkSurfaceKHR vk_surface;
     enum VkFormat vk_surface_format;
+    VkColorSpaceKHR vk_color_space;
 
     VkRenderPass vk_surface_render_pass;
     VkPipelineLayout vk_pipeline_layout;

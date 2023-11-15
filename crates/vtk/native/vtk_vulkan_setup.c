@@ -16,6 +16,21 @@ void set_image_layout(VkCommandBuffer cmdBuffer, VkImage image,
                       VkPipelineStageFlags srcStages,
                       VkPipelineStageFlags destStages);
 
+void vtk_setup_surface_format(struct VtkWindowNative* vtk_window) {
+    uint32_t format_count = 0;
+    CALL_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(vtk_window->vtk_device->vk_physical_device, vtk_window->vk_surface, &format_count, NULL))
+    VkSurfaceFormatKHR *formats = VTK_ARRAY_ALLOC(VkSurfaceFormatKHR, format_count);
+    CALL_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(vtk_window->vtk_device->vk_physical_device, vtk_window->vk_surface, &format_count, formats))
+    uint32_t chosenFormat;
+    for (chosenFormat = 0; chosenFormat < format_count; chosenFormat++) {
+        if (formats[chosenFormat].format == VK_FORMAT_B8G8R8A8_SRGB) break;
+    }
+    assert(chosenFormat < format_count);
+    vtk_window->vk_surface_format = formats[chosenFormat].format;
+    vtk_window->vk_color_space = formats[chosenFormat].colorSpace;
+    free(formats);
+}
+
 void vtk_create_swap_chain(struct VtkWindowNative* vtk_window) {
     struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
 
@@ -23,20 +38,7 @@ void vtk_create_swap_chain(struct VtkWindowNative* vtk_window) {
 
     VkSurfaceCapabilitiesKHR vk_surface_capabilities;
     CALL_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vtk_device->vk_physical_device, vtk_window->vk_surface, &vk_surface_capabilities))
-
-    uint32_t format_count = 0;
-    CALL_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(vtk_device->vk_physical_device, vtk_window->vk_surface, &format_count, NULL))
-    VkSurfaceFormatKHR *formats = VTK_ARRAY_ALLOC(VkSurfaceFormatKHR, format_count);
-    CALL_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(vtk_device->vk_physical_device, vtk_window->vk_surface, &format_count, formats))
-
-    uint32_t chosenFormat;
-    for (chosenFormat = 0; chosenFormat < format_count; chosenFormat++) {
-        if (formats[chosenFormat].format == VK_FORMAT_B8G8R8A8_SRGB) break;
-    }
-    assert(chosenFormat < format_count);
-
     vtk_window->vk_extent_2d = vk_surface_capabilities.currentExtent;
-    vtk_window->vk_surface_format = formats[chosenFormat].format;
 
     VkSurfaceCapabilitiesKHR surfaceCap;
     CALL_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vtk_device->vk_physical_device, vtk_window->vk_surface, &surfaceCap))
@@ -48,8 +50,8 @@ void vtk_create_swap_chain(struct VtkWindowNative* vtk_window) {
             .pNext = NULL,
             .surface = vtk_window->vk_surface,
             .minImageCount = vk_surface_capabilities.minImageCount,
-            .imageFormat = formats[chosenFormat].format,
-            .imageColorSpace = formats[chosenFormat].colorSpace,
+            .imageFormat = vtk_window->vk_surface_format,
+            .imageColorSpace = vtk_window->vk_color_space,
             .imageExtent = vk_surface_capabilities.currentExtent,
             .imageArrayLayers = 1,
             .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
@@ -100,7 +102,27 @@ void vtk_create_swap_chain(struct VtkWindowNative* vtk_window) {
         CALL_VK(vkCreateImageView(vtk_device->vk_device, &vk_image_view_create_info, NULL, &vtk_window->vk_swap_chain_images_views[i]))
     }
 
-    free(formats);
+    VkImageView depth_view = VK_NULL_HANDLE;
+    vtk_window->vk_swap_chain_framebuffers = VTK_ARRAY_ALLOC(VkFramebuffer, vtk_window->num_swap_chain_images);
+    for (uint32_t i = 0; i < vtk_window->num_swap_chain_images; i++) {
+        VkImageView attachments[2] = {
+                vtk_window->vk_swap_chain_images_views[i],
+                depth_view,
+        };
+        VkFramebufferCreateInfo vk_frame_buffer_create_info = {
+                .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                .pNext = NULL,
+                .renderPass = vtk_window->vk_surface_render_pass,
+                .attachmentCount = 1,  // 2 if using depth
+                .pAttachments = attachments,
+                .width = (uint32_t) vtk_window->vk_extent_2d.width,
+                .height = (uint32_t) vtk_window->vk_extent_2d.height,
+                .layers = 1,
+        };
+        vk_frame_buffer_create_info.attachmentCount = (depth_view == VK_NULL_HANDLE ? 1 : 2);
+
+        CALL_VK(vkCreateFramebuffer(vtk_window->vtk_device->vk_device, &vk_frame_buffer_create_info, NULL, &vtk_window->vk_swap_chain_framebuffers[i]));
+    }
 }
 
 void vtk_delete_swap_chain(struct VtkWindowNative* vtk_window) {
@@ -343,30 +365,6 @@ void vtk_create_graphics_pipeline(struct VtkWindowNative* vtk_window) {
     vkDestroyShaderModule(vtk_window->vtk_device->vk_device, fragmentShader, NULL);
 }
 
-void vtk_create_frame_buffers(struct VtkWindowNative* vtk_window) {
-    VkImageView depth_view = VK_NULL_HANDLE;
-    vtk_window->vk_swap_chain_framebuffers = VTK_ARRAY_ALLOC(VkFramebuffer, vtk_window->num_swap_chain_images);
-    for (uint32_t i = 0; i < vtk_window->num_swap_chain_images; i++) {
-        VkImageView attachments[2] = {
-                vtk_window->vk_swap_chain_images_views[i],
-                depth_view,
-        };
-        VkFramebufferCreateInfo vk_frame_buffer_create_info = {
-                .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-                .pNext = NULL,
-                .renderPass = vtk_window->vk_surface_render_pass,
-                .attachmentCount = 1,  // 2 if using depth
-                .pAttachments = attachments,
-                .width = (uint32_t) vtk_window->vk_extent_2d.width,
-                .height = (uint32_t) vtk_window->vk_extent_2d.height,
-                .layers = 1,
-        };
-        vk_frame_buffer_create_info.attachmentCount = (depth_view == VK_NULL_HANDLE ? 1 : 2);
-
-        CALL_VK(vkCreateFramebuffer(vtk_window->vtk_device->vk_device, &vk_frame_buffer_create_info, NULL, &vtk_window->vk_swap_chain_framebuffers[i]));
-    }
-}
-
 void vtk_create_command_buffers(struct VtkWindowNative* vtk_window) {
     VkCommandPoolCreateInfo vk_command_pool_create_info = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -467,14 +465,18 @@ void vtk_create_sync(struct VtkWindowNative* vtk_window) {
     CALL_VK(vkCreateSemaphore(vtk_window->vtk_device->vk_device, &vk_semaphore_create_info, NULL, &vtk_window->vk_semaphore));
 }
 
+void vtk_setup_window_rendering_repeat(struct VtkWindowNative* vtk_window) {
+    vtk_create_swap_chain(vtk_window);
+    vtk_record_command_buffers(vtk_window);
+}
+
 void vtk_setup_window_rendering(struct VtkWindowNative* vtk_window) {
     vtk_create_sync(vtk_window);
     vtk_create_command_buffers(vtk_window);
-
-    vtk_create_swap_chain(vtk_window);
+    vtk_setup_surface_format(vtk_window);
     vtk_create_surface_render_pass(vtk_window);
-    vtk_create_frame_buffers(vtk_window);
-    vtk_record_command_buffers(vtk_window);
+
+    vtk_setup_window_rendering_repeat(vtk_window);
 }
 
 // set_image_layout():
@@ -552,7 +554,6 @@ void vtk_terminate_window(struct VtkWindowNative* vtk_window) {
     vkDestroyRenderPass(vtk_window->vtk_device->vk_device, vtk_window->vk_surface_render_pass, NULL);
 
     vtk_delete_swap_chain(vtk_window);
-    //delete_swap_chain();
     //delete_graphics_pipeline();
     //delete_vertex_buffers();
 
@@ -565,11 +566,11 @@ void vtk_recreate_swap_chain(struct VtkWindowNative* vtk_window) {
     CALL_VK(vkDeviceWaitIdle(vtk_window->vtk_device->vk_device))
 
     vtk_delete_swap_chain(vtk_window);
+    vtk_setup_window_rendering_repeat(vtk_window);
     //delete_graphics_pipeline();
     //delete_command_buffers();
 
     //vtk_create_swap_chain();
-    //vtk_create_frame_buffers(render.vk_render_pass);
     //vtk_create_graphics_pipeline();
     //vtk_create_command_buffers();
 }
@@ -748,23 +749,13 @@ void delete_graphics_pipeline(void) {
     // TODO: free memory?
 }
 
-void delete_command_buffers() {
-    vkFreeCommandBuffers(device.vk_device, render.vk_command_pool, render.command_buffer_len, vtk_window->vk_command_buffers);
-    free(vtk_window->vk_command_buffers);
-}
-
 void terminate_window() {
-    delete_command_buffers();
-    vkDestroyCommandPool(device.vk_device, render.vk_command_pool, NULL);
-    vkDestroyRenderPass(device.vk_device, render.vk_render_pass, NULL);
     delete_swap_chain();
     delete_graphics_pipeline();
     delete_vertex_buffers();
 
     vkDestroyDevice(device.vk_device, NULL);
     vkDestroyInstance(device.vk_instance, NULL);
-
-    device.initialized_ = false;
 }
 
 void recreate_swap_chain() {
