@@ -184,6 +184,7 @@ void vtk_create_graphics_pipeline(struct VtkWindowNative* vtk_window) {
     //load_shader_from_file("out/shaders/triangle.frag.spv", &fragmentShader);
 
     // Specify vertex and fragment shader stages
+    /*
     VkPipelineShaderStageCreateInfo shader_stages[] = {
             {
                     .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -203,6 +204,7 @@ void vtk_create_graphics_pipeline(struct VtkWindowNative* vtk_window) {
                     .pName = "main",
                     .pSpecializationInfo = NULL,
             }};
+            */
 
     VkViewport viewports = {
             .x = 0,
@@ -314,8 +316,8 @@ void vtk_create_graphics_pipeline(struct VtkWindowNative* vtk_window) {
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             .pNext = NULL,
             .flags = 0,
-            .stageCount = 2,
-            .pStages = shader_stages,
+            .stageCount = 0,
+            .pStages = NULL, //shader_stages,
             .pVertexInputState = &vk_pipeline_vertex_input_state_create_info,
             .pInputAssemblyState = &inputAssemblyInfo,
             .pTessellationState = NULL,
@@ -343,7 +345,6 @@ void vtk_create_graphics_pipeline(struct VtkWindowNative* vtk_window) {
 
 void vtk_create_frame_buffers(struct VtkWindowNative* vtk_window) {
     VkImageView depth_view = VK_NULL_HANDLE;
-    // create a framebuffer from each swapchain image
     vtk_window->vk_swap_chain_framebuffers = VTK_ARRAY_ALLOC(VkFramebuffer, vtk_window->num_swap_chain_images);
     for (uint32_t i = 0; i < vtk_window->num_swap_chain_images; i++) {
         VkImageView attachments[2] = {
@@ -366,9 +367,275 @@ void vtk_create_frame_buffers(struct VtkWindowNative* vtk_window) {
     }
 }
 
+void vtk_create_command_buffers(struct VtkWindowNative* vtk_window) {
+    VkCommandPoolCreateInfo vk_command_pool_create_info = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .pNext = NULL,
+            // There are two possible flags for command pools:
+            // - VK_COMMAND_POOL_CREATE_TRANSIENT_BIT: Hint that command buffers are rerecorded with new commands
+            //    very often (may change memory allocation behavior).
+            // - VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT: Allow command buffers to be rerecorded individually,
+            //   without this flag they all have to be reset together.
+            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+            .queueFamilyIndex = vtk_window->vtk_device->queue_family_index,
+    };
+    CALL_VK(vkCreateCommandPool(vtk_window->vtk_device->vk_device, &vk_command_pool_create_info, NULL, &vtk_window->vk_command_pool));
+
+    // In our case we create one command buffer per swap chain image.
+    vtk_window->command_buffer_len = vtk_window->num_swap_chain_images;
+    vtk_window->vk_command_buffers = VTK_ARRAY_ALLOC(VkCommandBuffer, vtk_window->num_swap_chain_images);
+    VkCommandBufferAllocateInfo vk_command_buffers_allocate_info = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .pNext = NULL,
+            .commandPool = vtk_window->vk_command_pool,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = vtk_window->command_buffer_len,
+    };
+    CALL_VK(vkAllocateCommandBuffers(vtk_window->vtk_device->vk_device, &vk_command_buffers_allocate_info, vtk_window->vk_command_buffers));
+}
+
+void vtk_record_command_buffers(struct VtkWindowNative* vtk_window) {
+    for (uint32_t bufferIndex = 0; bufferIndex < vtk_window->num_swap_chain_images; bufferIndex++) {
+        // We start by creating and declare the "beginning" our command buffer
+        VkCommandBufferBeginInfo vk_command_buffers_begin_info = {
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                .pNext = NULL,
+                .flags = 0,
+                .pInheritanceInfo = NULL,
+        };
+        CALL_VK(vkBeginCommandBuffer(vtk_window->vk_command_buffers[bufferIndex], &vk_command_buffers_begin_info));
+        // transition the display image to color attachment layout
+        set_image_layout(vtk_window->vk_command_buffers[bufferIndex],
+                         vtk_window->vk_swap_chain_images[bufferIndex],
+                         VK_IMAGE_LAYOUT_UNDEFINED,
+                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+
+        // Now we start a renderpass. Any draw command has to be recorded in a renderpass.
+        VkClearValue vk_clear_value = {.color = {.float32 = {0.0f, 0.0f, 0.0f, 1.0f}}};
+        VkRenderPassBeginInfo vk_render_pass_begin_info = {
+                .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                .pNext = NULL,
+                .renderPass = vtk_window->vk_surface_render_pass,
+                .framebuffer = vtk_window->vk_swap_chain_framebuffers[bufferIndex],
+                .renderArea = {.offset = {.x = 0, .y = 0,}, .extent = vtk_window->vk_extent_2d},
+                .clearValueCount = 1,
+                .pClearValues = &vk_clear_value
+        };
+
+        vkCmdBeginRenderPass(vtk_window->vk_command_buffers[bufferIndex], &vk_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+        /*
+        {
+            vkCmdBindPipeline(vtk_window->vk_command_buffers[bufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, gfxPipeline.vk_pipeline);
+
+            uint32_t first_binding = 0;
+            VkBuffer new_buffers[2] = {buffers.vk_vertex_position_buffer, buffers.vk_vertex_color_buffer};
+            uint32_t binding_count = 2;
+            VkDeviceSize buffer_offsets[2] = {0, 0};
+            vkCmdBindVertexBuffers(vtk_window->vk_command_buffers[bufferIndex], first_binding, binding_count, new_buffers, buffer_offsets);
+
+            uint32_t vertex_count = 3;
+            uint32_t instance_count = 1;
+            uint32_t first_vertex = 0;
+            uint32_t first_instance = 0;
+            vkCmdDraw(vtk_window->vk_command_buffers[bufferIndex], vertex_count, instance_count, first_vertex, first_instance);
+        }
+        */
+        vkCmdEndRenderPass(vtk_window->vk_command_buffers[bufferIndex]);
+        CALL_VK(vkEndCommandBuffer(vtk_window->vk_command_buffers[bufferIndex]));
+    }
+}
+
+void vtk_create_sync(struct VtkWindowNative* vtk_window) {
+    // We need to create a fence to be able, in the main loop, to wait for our
+    // draw command(s) to finish before swapping the framebuffers
+    VkFenceCreateInfo vk_fence_create_info = {
+            .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+            .pNext = NULL,
+            .flags = VK_FENCE_CREATE_SIGNALED_BIT,
+    };
+    CALL_VK(vkCreateFence(vtk_window->vtk_device->vk_device, &vk_fence_create_info, NULL, &vtk_window->vk_fence));
+
+    // We need to create a semaphore to be able to wait, in the main loop, for our
+    // framebuffer to be available for us before drawing.
+    VkSemaphoreCreateInfo vk_semaphore_create_info = {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = NULL,
+            .flags = 0,
+    };
+    CALL_VK(vkCreateSemaphore(vtk_window->vtk_device->vk_device, &vk_semaphore_create_info, NULL, &vtk_window->vk_semaphore));
+}
+
 void vtk_setup_window_rendering(struct VtkWindowNative* vtk_window) {
+    vtk_create_sync(vtk_window);
     vtk_create_swap_chain(vtk_window);
     vtk_create_surface_render_pass(vtk_window);
+    vtk_create_frame_buffers(vtk_window);
+    vtk_create_command_buffers(vtk_window);
+    vtk_record_command_buffers(vtk_window);
+}
+
+// set_image_layout():
+//    Helper function to transition color buffer layout
+void set_image_layout(VkCommandBuffer cmdBuffer,
+                      VkImage image,
+                      VkImageLayout oldImageLayout,
+                      VkImageLayout newImageLayout,
+                      VkPipelineStageFlags srcStages,
+                      VkPipelineStageFlags destStages) {
+    VkImageMemoryBarrier vk_image_memory_barrier = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            .pNext = NULL,
+            .srcAccessMask = 0,
+            .dstAccessMask = 0,
+            .oldLayout = oldImageLayout,
+            .newLayout = newImageLayout,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = image,
+            .subresourceRange = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .baseMipLevel = 0,
+                    .levelCount = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+            },
+    };
+
+    switch (oldImageLayout) {
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            vk_image_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            vk_image_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_PREINITIALIZED:
+            vk_image_memory_barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+            break;
+        default:
+            break;
+    }
+
+    switch (newImageLayout) {
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+            break;
+        default:
+            break;
+    }
+
+    vkCmdPipelineBarrier(cmdBuffer, srcStages, destStages, 0, 0, NULL, 0, NULL, 1, &vk_image_memory_barrier);
+}
+
+void vtk_terminate_window(struct VtkWindowNative* vtk_window) {
+    vkFreeCommandBuffers(vtk_window->vtk_device->vk_device, vtk_window->vk_command_pool, vtk_window->command_buffer_len, vtk_window->vk_command_buffers);
+    free(vtk_window->vk_command_buffers);
+
+    vkDestroyCommandPool(vtk_window->vtk_device->vk_device, vtk_window->vk_command_pool, NULL);
+    vkDestroyRenderPass(vtk_window->vtk_device->vk_device, vtk_window->vk_surface_render_pass, NULL);
+
+    //delete_swap_chain();
+    //delete_graphics_pipeline();
+    //delete_vertex_buffers();
+
+    //vkDestroyDevice(device.vk_device, NULL);
+    //vkDestroyInstance(device.vk_instance, NULL);
+    //device.initialized_ = false;
+}
+
+void vtk_recreate_swap_chain(struct VtkWindowNative* vtk_window) {
+    CALL_VK(vkDeviceWaitIdle(vtk_window->vtk_device->vk_device))
+
+    //delete_swap_chain();
+    //delete_graphics_pipeline();
+    //delete_command_buffers();
+
+    //vtk_create_swap_chain();
+    //vtk_create_frame_buffers(render.vk_render_pass);
+    //vtk_create_graphics_pipeline();
+    //vtk_create_command_buffers();
+}
+
+void vtk_render_frame(struct VtkWindowNative* vtk_window) {
+    CALL_VK(vkWaitForFences(vtk_window->vtk_device->vk_device, 1, &vtk_window->vk_fence, VK_TRUE, UINT64_MAX))
+
+    uint32_t acquired_image_idx;
+    VkResult acquire_result = vkAcquireNextImageKHR(vtk_window->vtk_device->vk_device, vtk_window->vk_swapchain, UINT64_MAX, vtk_window->vk_semaphore, VK_NULL_HANDLE, &acquired_image_idx);
+    switch (acquire_result) {
+        case VK_SUCCESS:
+            break;
+        case VK_ERROR_OUT_OF_DATE_KHR:
+            LOGI("vkAcquireNextImageKHR() returned VK_ERROR_OUT_OF_DATE_KHR - recreating... %d", 1);
+            // We cannot present it - recreate and return.
+            vtk_recreate_swap_chain(vtk_window);
+            break;
+        case VK_SUBOPTIMAL_KHR:
+            // Ok to go ahead and present image - recreate after present.
+            LOGI("vkAcquireNextImageKHR() returned VK_SUBOPTIMAL_KHR, %d", 1);
+            break;
+        default:
+            LOGE("vkAcquireNextImageKHR failed");
+            assert(false);
+            break;
+    }
+
+    CALL_VK(vkResetFences(vtk_window->vtk_device->vk_device, 1, &vtk_window->vk_fence))
+
+    VkPipelineStageFlags vk_pipeline_stage_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkSubmitInfo submit_info = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .pNext = NULL,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &vtk_window->vk_semaphore,
+            .pWaitDstStageMask = &vk_pipeline_stage_flags,
+            .commandBufferCount = 1,
+            .pCommandBuffers = &vtk_window->vk_command_buffers[acquired_image_idx],
+            .signalSemaphoreCount = 0,
+            .pSignalSemaphores = NULL
+    };
+    CALL_VK(vkQueueSubmit(vtk_window->vtk_device->vk_queue, 1, &submit_info, vtk_window->vk_fence))
+
+    VkResult result;
+    VkPresentInfoKHR presentInfo = {
+            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+            .pNext = NULL,
+            .waitSemaphoreCount = 0,
+            .pWaitSemaphores = NULL,
+            .swapchainCount = 1,
+            .pSwapchains = &vtk_window->vk_swapchain,
+            .pImageIndices = &acquired_image_idx,
+            .pResults = &result,
+    };
+    VkResult present_result = vkQueuePresentKHR(vtk_window->vtk_device->vk_queue, &presentInfo);
+    switch (present_result) {
+        case VK_SUCCESS:
+            break;
+        case VK_SUBOPTIMAL_KHR:
+        case VK_ERROR_OUT_OF_DATE_KHR:
+            LOGI("vkQueuePresentKHR() returned VK_SUBOPTIMAL_KHR | VK_ERROR_OUT_OF_DATE_KHR - recreating...");
+            vtk_recreate_swap_chain(vtk_window);
+            break;
+        default:
+            LOGE("vkQueuePresentKHR failed");
+            assert(false);
+            break;
+    }
 }
 
 /*
@@ -510,84 +777,6 @@ void load_shader_from_file(const char *filePath, VkShaderModule *shaderOut) {
 #endif
 }
 
-VkShaderModule compile_shader(VkDevice a_device, uint8_t *bytes, size_t size) {
-    VkShaderModuleCreateInfo vk_shader_module_create_info = {
-            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            .pNext = NULL,
-            .flags = 0,
-            .codeSize = size,
-            .pCode = (const uint32_t *) bytes,
-    };
-    VkShaderModule result;
-    CALL_VK(vkCreateShaderModule(a_device, &vk_shader_module_create_info, NULL, &result));
-    return result;
-}
-
-void vtk_create_command_buffers(struct VtkWindow* vtk_window) {
-    // Record a command buffer that just clear the screen
-    // 1 command buffer draw in 1 framebuffer
-    // In our case we create one command buffer per swap chain image.
-    render.command_buffer_len = swapchain.num_images;
-    render.vk_command_buffers = VK_WRAP_ALLOC_ARRAY(VkCommandBuffer, swapchain.num_images);
-    VkCommandBufferAllocateInfo vk_command_buffers_allocate_info = {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .pNext = NULL,
-            .commandPool = render.vk_command_pool,
-            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = render.command_buffer_len,
-    };
-    CALL_VK(vkAllocateCommandBuffers(device.vk_device, &vk_command_buffers_allocate_info, render.vk_command_buffers));
-
-    for (uint32_t bufferIndex = 0; bufferIndex < swapchain.num_images; bufferIndex++) {
-        // We start by creating and declare the "beginning" our command buffer
-        VkCommandBufferBeginInfo vk_command_buffers_begin_info = {
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                .pNext = NULL,
-                .flags = 0,
-                .pInheritanceInfo = NULL,
-        };
-        CALL_VK(vkBeginCommandBuffer(render.vk_command_buffers[bufferIndex], &vk_command_buffers_begin_info));
-        // transition the display image to color attachment layout
-        set_image_layout(render.vk_command_buffers[bufferIndex],
-                         swapchain.vk_images[bufferIndex],
-                         VK_IMAGE_LAYOUT_UNDEFINED,
-                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-
-        // Now we start a renderpass. Any draw command has to be recorded in a renderpass.
-        VkClearValue vk_clear_value = {.color = {.float32 = {0.0f, 0.0f, 0.0f, 1.0f}}};
-        VkRenderPassBeginInfo vk_render_pass_begin_info = {
-                .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-                .pNext = NULL,
-                .renderPass = render.vk_render_pass,
-                .framebuffer = swapchain.vk_framebuffers[bufferIndex],
-                .renderArea = {.offset = {.x = 0, .y = 0,}, .extent = swapchain.vk_extend_2d},
-                .clearValueCount = 1,
-                .pClearValues = &vk_clear_value
-        };
-
-        vkCmdBeginRenderPass(render.vk_command_buffers[bufferIndex], &vk_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-        {
-            vkCmdBindPipeline(render.vk_command_buffers[bufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, gfxPipeline.vk_pipeline);
-
-            uint32_t first_binding = 0;
-            VkBuffer new_buffers[2] = {buffers.vk_vertex_position_buffer, buffers.vk_vertex_color_buffer};
-            uint32_t binding_count = 2;
-            VkDeviceSize buffer_offsets[2] = {0, 0};
-            vkCmdBindVertexBuffers(render.vk_command_buffers[bufferIndex], first_binding, binding_count, new_buffers,
-                                   buffer_offsets);
-
-            uint32_t vertex_count = 3;
-            uint32_t instance_count = 1;
-            uint32_t first_vertex = 0;
-            uint32_t first_instance = 0;
-            vkCmdDraw(render.vk_command_buffers[bufferIndex], vertex_count, instance_count, first_vertex, first_instance);
-        }
-        vkCmdEndRenderPass(render.vk_command_buffers[bufferIndex]);
-        CALL_VK(vkEndCommandBuffer(render.vk_command_buffers[bufferIndex]));
-    }
-}
 
 void delete_graphics_pipeline(void) {
     if (gfxPipeline.vk_pipeline == VK_NULL_HANDLE) return;
@@ -687,19 +876,6 @@ void init_window(
 
     create_graphics_pipeline();
 
-    VkCommandPoolCreateInfo vk_command_pool_create_info = {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-            .pNext = NULL,
-            // There are two possible flags for command pools:
-            // - VK_COMMAND_POOL_CREATE_TRANSIENT_BIT: Hint that command buffers are rerecorded with new commands
-            //    very often (may change memory allocation behavior).
-            // - VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT: Allow command buffers to be rerecorded individually,
-            //   without this flag they all have to be reset together.
-            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-            .queueFamilyIndex = device.queueFamilyIndex_,
-    };
-    CALL_VK(vkCreateCommandPool(device.vk_device, &vk_command_pool_create_info, NULL, &render.vk_command_pool));
-
     create_command_buffers();
 
     // We need to create a fence to be able, in the main loop, to wait for our
@@ -728,8 +904,8 @@ bool is_vulkan_ready() {
 }
 
 void delete_command_buffers() {
-    vkFreeCommandBuffers(device.vk_device, render.vk_command_pool, render.command_buffer_len, render.vk_command_buffers);
-    free(render.vk_command_buffers);
+    vkFreeCommandBuffers(device.vk_device, render.vk_command_pool, render.command_buffer_len, vtk_window->vk_command_buffers);
+    free(vtk_window->vk_command_buffers);
 }
 
 void terminate_window() {
@@ -793,7 +969,7 @@ void draw_frame() {
             .pWaitSemaphores = &render.vk_semaphore,
             .pWaitDstStageMask = &vk_pipeline_stage_flags,
             .commandBufferCount = 1,
-            .pCommandBuffers = &render.vk_command_buffers[acquired_image_idx],
+            .pCommandBuffers = &vtk_window->vk_command_buffers[acquired_image_idx],
             .signalSemaphoreCount = 0,
             .pSignalSemaphores = NULL
     };
@@ -826,70 +1002,4 @@ void draw_frame() {
     }
 }
 
-// set_image_layout():
-//    Helper function to transition color buffer layout
-void set_image_layout(VkCommandBuffer cmdBuffer,
-                      VkImage image,
-                      VkImageLayout oldImageLayout,
-                      VkImageLayout newImageLayout,
-                      VkPipelineStageFlags srcStages,
-                      VkPipelineStageFlags destStages) {
-    VkImageMemoryBarrier vk_image_memory_barrier = {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-            .pNext = NULL,
-            .srcAccessMask = 0,
-            .dstAccessMask = 0,
-            .oldLayout = oldImageLayout,
-            .newLayout = newImageLayout,
-            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .image = image,
-            .subresourceRange = {
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel = 0,
-                    .levelCount = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1,
-            },
-    };
-
-    switch (oldImageLayout) {
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            vk_image_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            vk_image_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_PREINITIALIZED:
-            vk_image_memory_barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
-            break;
-        default:
-            break;
-    }
-
-    switch (newImageLayout) {
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-            vk_image_memory_barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-            break;
-        default:
-            break;
-    }
-
-    vkCmdPipelineBarrier(cmdBuffer, srcStages, destStages, 0, 0, NULL, 0, NULL, 1, &vk_image_memory_barrier);
-}
 */

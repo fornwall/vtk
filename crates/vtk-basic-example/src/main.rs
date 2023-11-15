@@ -13,7 +13,7 @@ impl vtk::VtkApplication for TriangleApplication {
 
 fn main() {
     let application = TriangleApplication { value: 23897 };
-    let mut application = Box::new(application);
+    let application = Box::new(application);
 
     let vertex_shader_bytes =
         include_bytes!(concat!(env!("OUT_DIR"), "/shaders/triangle.vert.spv"));

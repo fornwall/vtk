@@ -37,10 +37,6 @@
     CALL_VK(vkCreateMetalSurfaceEXT(vtk_device->vk_instance, &surface_create_info, NULL, &vtk_window->vk_surface));
     vtk_setup_window_rendering(vtk_window);
 
-    printf("#####\nvtk_device: %p\n", vtk_device);
-    printf("vtk_context: %p\n", vtk_device->vtk_context);
-    printf("vtk_application: %p\n", vtk_device->vtk_context->vtk_application);
-    printf("vtk_window: %p\n", vtk_window);
     vtk_application_setup_window(vtk_device->vtk_context->vtk_application, vtk_device, vtk_window);
 
     CVDisplayLinkCreateWithActiveCGDisplays(&_displayLink);
@@ -84,6 +80,7 @@ static CVReturn DisplayLinkCallback(
     struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
     if (view_controller->_stop == NO) {
         vtk_application_render_frame(vtk_device->vtk_context->vtk_application, vtk_device, vtk_window);
+        vtk_render_frame(vtk_window);
     }
     return kCVReturnSuccess;
 }

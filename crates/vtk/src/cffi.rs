@@ -49,14 +49,5 @@ pub struct VtkWindow {
     pub(crate) native_handle: *mut VtkWindowNative
 }
 
-impl VtkWindow {
-    pub fn debug_print(&self) {
-        unsafe {
-            println!("device in debug print: {:p}", (*self.native_handle).vtk_device);
-            println!("width,height debug print: {},{}", (*self.native_handle).width, (*self.native_handle).height);
-        }
-    }
-}
-
 include!(concat!(env!("OUT_DIR"), "/cffi_bindings.rs"));
 

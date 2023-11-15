@@ -39,8 +39,6 @@ struct VtkDeviceNative {
 
 struct VtkWindowNative {
     struct VtkDeviceNative* vtk_device;
-    uint32_t width;
-    uint32_t height;
 
     VkSurfaceKHR vk_surface;
     enum VkFormat vk_surface_format;
@@ -55,6 +53,12 @@ struct VtkWindowNative {
     VkImageView *vk_swap_chain_images_views;
     struct VkExtent2D vk_extent_2d;
     VkFramebuffer* vk_swap_chain_framebuffers;
+
+    VkCommandPool vk_command_pool;
+    VkCommandBuffer *vk_command_buffers;
+    uint32_t command_buffer_len;
+    VkSemaphore vk_semaphore;
+    VkFence vk_fence;
 
 #ifdef __APPLE__
     /** Platform-specific data. <div rustbindgen private> */

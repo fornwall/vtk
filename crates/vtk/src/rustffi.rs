@@ -58,7 +58,7 @@ pub extern "C" fn vtk_application_setup_window(
     vtk_device: *mut ::std::os::raw::c_void,
     vtk_window: *mut ::std::os::raw::c_void,
 ) {
-    let mut application = unsafe { Box::from_raw(application as (*mut Box<dyn VtkApplication>)) };
+    let mut application = unsafe { Box::from_raw(application as *mut Box<dyn VtkApplication>) };
     let vtk_device : &mut VtkDeviceNative = unsafe { &mut *(vtk_device as *mut VtkDeviceNative) };
     let vtk_window : &mut VtkWindowNative = unsafe { &mut *(vtk_window as *mut VtkWindowNative) };
     println!("setup window callback");
@@ -75,7 +75,7 @@ pub extern "C" fn vtk_application_render_frame(
     vtk_window: *mut ::std::os::raw::c_void,
 ) {
     //let application : &mut Box<dyn VtkApplication> = unsafe { &mut *(application as *mut Box<dyn VtkApplication>) };
-    let mut application = unsafe { Box::from_raw(application as (*mut Box<dyn VtkApplication>)) };
+    let mut application = unsafe { Box::from_raw(application as *mut Box<dyn VtkApplication>) };
     let vtk_device : &mut VtkDeviceNative = unsafe { &mut *(vtk_device as *mut VtkDeviceNative) };
     let vtk_window : &mut VtkWindowNative = unsafe { &mut *(vtk_window as *mut VtkWindowNative) };
     println!("render callback");
