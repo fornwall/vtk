@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 
 #ifdef __ANDROID__
 

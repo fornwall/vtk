@@ -4,22 +4,6 @@ mod rustffi;
 pub use cffi::*;
 use rustffi::Key;
 
-impl VtkDevice {
-    pub fn new() -> Self {
-        let mut result = Self {
-            initialized: false,
-            vk_instance: std::ptr::null_mut(),
-            vk_physical_device: std::ptr::null_mut(),
-            vk_device: std::ptr::null_mut(),
-            queue_family_index: 0,
-            vk_queue: std::ptr::null_mut(),
-        };
-        let ok = unsafe { vtk_device_init(&mut result as *mut Self) };
-        assert!(ok);
-        result
-    }
-}
-
 struct KeyInput {
     bits: Key,
 }

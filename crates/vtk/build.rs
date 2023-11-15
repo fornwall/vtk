@@ -277,6 +277,7 @@ fn main() {
 
     // bindgen - see https://rust-lang.github.io/rust-bindgen/tutorial-3.html
     let bindings = bindgen::Builder::default()
+        .clang_arg("-DVTK_CUSTOM_VULKAN_TYPES=1")
         // The input header we would like to generate bindings for.
         .header("native/vtk_cffi.h")
         // Tell cargo to invalidate the built crate whenever any of the included header files changed.
@@ -296,6 +297,9 @@ fn main() {
     cc.include(&generated_headers_dir);
     let output_file = format!("{}/rustffi.h", generated_headers_dir);
     let mut cbindgen_config = cbindgen::Config::default();
+    cbindgen_config
+        .defines
+        .insert("VTK_CUSTOM_VULKAN_TYPES".to_string(), "1".to_string());
     cbindgen_config.language = cbindgen::Language::C;
     cbindgen_config.macro_expansion.bitflags = true;
     cbindgen::generate_with_config(&crate_dir, cbindgen_config)
@@ -349,8 +353,11 @@ fn main() {
         println!("cargo:rustc-link-search=native={}", project_dir.display());
 
         cc.include(&include_dir);
+
+        println!("cargo:rerun-if-changed=native/platforms/mac/vtk_mac.m");
         cc.file("native/platforms/mac/vtk_mac.m");
-        cc.file("native/platforms/mac/CustomViewController.m");
+        println!("cargo:rerun-if-changed=native/platforms/mac/VtkViewController.m");
+        cc.file("native/platforms/mac/VtkViewController.m");
     }
 
     println!("cargo:rustc-link-lib=framework=Metal");
@@ -362,6 +369,15 @@ fn main() {
     println!("cargo:rustc-link-lib=static=MoltenVK");
 
     cc.include("native/");
+    println!("cargo:rerun-if-changed=native/vtk_cffi.h");
+    println!("cargo:rerun-if-changed=native/vtk_cffi.c");
     cc.file("native/vtk_cffi.c");
+
+    // TODO: Make sanitize a feature or depend on build profile?
+    //       Probably feature, to avoid flexibility
+    //cc.flag("-g");
+    //cc.flag("-fsanitize=address");
+    //cc.flag("-fsanitize=undefined");
+
     cc.compile("foo");
 }

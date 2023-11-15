@@ -1,61 +1,79 @@
-#import "CustomViewController.h"
+#import "VtkViewController.h"
 #import <QuartzCore/CAMetalLayer.h>
 #import <CoreVideo/CVDisplayLink.h>
 
 // Gamepad - but extract to own files
-#import <IOKit/hid/IOHIDLib.h>
+// #import <IOKit/hid/IOHIDLib.h>
 
+#include "vtk_log.h"
 #include "rustffi.h"
 #include "vulkan_main.h"
 
 #include <MoltenVK/mvk_vulkan.h>
 
 #pragma mark -
-#pragma mark CustomViewController
+#pragma mark VtkViewController
 
-@implementation CustomViewController {
-    CVDisplayLinkRef _displayLink;
-    // TODO: vulkan state struct Custom Custom;
-    uint32_t _maxFrameCount;
-    uint64_t _frameCount;
-    BOOL _stop;
-}
+@implementation VtkViewController
 
 /** Since this is a single-view app, initialize Vulkan as view is appearing. */
--(void) viewWillAppear {
+-(void)viewWillAppear {
     [super viewWillAppear];
 
     self.view.wantsLayer = YES; // Back the view with a layer created by the makeBackingLayer method.
+
+    struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
+    printf("vtk_window in viewWill: %p\n", vtk_window);
+    printf("vtk_device in viewWill: %p\n", vtk_device);
 }
 
 - (void)viewDidAppear {
-    // If this value is set to zero, the Custom will render frames until the window is closed.
+    printf("vtk_window->width in view: %p\n", vtk_window->width);
+    printf("vtk_window->height in view: %p\n", vtk_window->height);
+    struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
+    printf("vtk_window in view: %p\n", vtk_window);
+    printf("vtk_device in view: %p\n", vtk_device);
+
+    // If this value is set to zero, the Vtk will render frames until the window is closed.
     // If this value is not zero, it establishes a maximum number of frames that will be
-    // rendered, and once this count has been reached, the Custom will stop rendering.
-    // Once rendering is finished, the Custom will delay cleaning up Vulkan objects until
+    // rendered, and once this count has been reached, the Vtk will stop rendering.
+    // Once rendering is finished, the Vtk will delay cleaning up Vulkan objects until
     // the window is closed.
     _maxFrameCount = 0;
     _stop = NO;
     _frameCount = 0;
 
+    //printf("vk_instance in view: %p\n", vtk_device->vk_instance);
+    const CAMetalLayer* metal_layer = (const CAMetalLayer*) self.view.layer;
+    printf("Metal layer: %p\n", metal_layer);
 
-    init_window((const CAMetalLayer*) self.view.layer);
+    VkMetalSurfaceCreateInfoEXT surface_create_info = {
+        .sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT,
+        .pNext = NULL,
+        .flags = 0,
+        .pLayer = metal_layer,
+    };
 
+    CALL_VK(vkCreateMetalSurfaceEXT(vtk_device->vk_instance, &surface_create_info, NULL, &vtk_window->vk_surface));
+    //init_window((const CAMetalLayer*) self.view.layer);
+
+    printf("viewDidAppear 4\n");
     CVDisplayLinkCreateWithActiveCGDisplays(&_displayLink);
     CVDisplayLinkSetOutputCallback(_displayLink, &DisplayLinkCallback, self);
     CVDisplayLinkStart(_displayLink);
+    printf("viewDidAppear 5\n");
 }
 
 -(void)loadView
 {
-    self.view = [[CustomView alloc] init];
+    self.view = [[VtkView alloc] init];
 }
 
 -(void) viewDidDisappear {
     _stop = YES;
 
     CVDisplayLinkRelease(_displayLink);
-    // TODO: Custom_cleanup(&Custom);
+    // TODO: Vtk_cleanup(&Vtk);
 
     [super viewDidDisappear];
 }
@@ -77,11 +95,11 @@ static CVReturn DisplayLinkCallback(
         CVOptionFlags* _flags_out __attribute__((unused)),
         // A pointer to app-defined data.
         void* display_link_context __attribute__((unused))) {
-    CustomViewController* view_controller = (CustomViewController*) display_link_context;
+    VtkViewController* view_controller = (VtkViewController*) display_link_context;
     if (view_controller->_stop == NO) {
-        // TODO: Draw Custom_draw(&CustomVC->Custom);
+        // TODO: Draw Vtk_draw(&VtkVC->Vtk);
         //printf("Is vulkan ready? %s\n", is_vulkan_ready() ? "yes" : "no");
-        if (is_vulkan_ready()) draw_frame();
+        //if (is_vulkan_ready()) draw_frame();
         //view_controller->_stop = (view_controller->_maxFrameCount && ++view_controller->_frameCount >= view_controller->_maxFrameCount);
     }
     return kCVReturnSuccess;
@@ -90,9 +108,9 @@ static CVReturn DisplayLinkCallback(
 @end
 
 #pragma mark -
-#pragma mark CustomView
+#pragma mark VtkView
 
-@implementation CustomView
+@implementation VtkView
 
 /** Indicates that the view wants to draw using the backing layer instead of using drawRect:.  */
 -(BOOL) wantsUpdateLayer { return YES; }
@@ -111,7 +129,7 @@ static CVReturn DisplayLinkCallback(
 /**
  * If this view moves to a screen that has a different resolution scale (eg. Standard <=> Retina),
  * update the contentsScale of the layer, which will trigger a Vulkan VK_SUBOPTIMAL_KHR result, which
- * causes this Custom to replace the swapchain, in order to optimize rendering for the new resolution.
+ * causes this Vtk to replace the swapchain, in order to optimize rendering for the new resolution.
  */
 - (BOOL)layer: (CALayer*)layer shouldInheritContentsScale:(CGFloat)newScale fromWindow:(NSWindow*)window {
     if (newScale == layer.contentsScale) { return NO; }
@@ -236,7 +254,5 @@ void update_pressed_keys(Key* pressed_keys, uint32_t mac_identifier, bool presse
 - (void)mouseUp:(NSEvent *)theEvent {
     // TODO
 }
-
-
 
 @end

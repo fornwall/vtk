@@ -9,7 +9,7 @@ int main()
     [app setActivationPolicy:NSApplicationActivationPolicyRegular];
 
     NSRect frame = NSMakeRect(0, 0, 600, 600);
-    CustomViewController * viewController = [[CustomViewController alloc] init];
+    VtkViewController * viewController = [[VtkViewController alloc] init];
     //[self.window setContentView:viewController.view];
     //CustomView* view = [[CustomView alloc] initWithFrame: frame];
     NSView* view = viewController.view;

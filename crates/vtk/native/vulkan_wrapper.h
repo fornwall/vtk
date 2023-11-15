@@ -1,14 +1,12 @@
 #ifndef VULKAN_WRAPPER_H
 #define VULKAN_WRAPPER_H
 
-#include <stdbool.h>
-
 #ifdef __ANDROID__
 # define VK_USE_PLATFORM_ANDROID_KHR
 # define VK_NO_PROTOTYPES 1
 #elif defined __APPLE__
-# define VK_USE_PLATFORM_MACOS_MVK
-# define VK_USE_PLATFORM_METAL_EXT
+# define VK_USE_PLATFORM_MACOS_MVK 1
+# define VK_USE_PLATFORM_METAL_EXT 1
 #endif
 
 #include <vulkan/vulkan.h>
@@ -22,12 +20,11 @@ extern "C" {
  * Initialize the Vulkan function pointer variables declared in this header.
  * Returns false if vulkan is not available.
  */
-bool load_vulkan_symbols();
+_Bool load_vulkan_symbols();
 
 #ifdef __cplusplus
 }
 #endif
-
 
 // VK_core
 extern PFN_vkCreateInstance vkCreateInstance;

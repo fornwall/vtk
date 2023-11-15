@@ -1,14 +1,15 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define VTK_INCLUDE_VULKAN_PROPER
-
 #include "vtk_array.h"
 #include "vtk_cffi.h"
 #include "vtk_log.h"
+#include "vtk_internal.h"
 
-_Bool vtk_device_init(struct VtkDevice* device)
+struct VtkDeviceNative* vtk_device_init(struct VtkApplicationNative* vtk_application)
 {
+    struct VtkDeviceNative* device = malloc(sizeof(struct VtkDeviceNative));
+
 #ifdef __ANDROID__
     if (!load_vulkan_symbols()) {
         LOGW("Vulkan is unavailable, install vulkan and re-start");
@@ -23,7 +24,7 @@ _Bool vtk_device_init(struct VtkDevice* device)
               .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
               .pEngineName = "vulkan-example",
               .engineVersion = VK_MAKE_VERSION(0, 1, 0),
-              .apiVersion = VK_MAKE_VERSION(1, 1, 0),
+              .apiVersion = VK_MAKE_VERSION(1, 3, 0),
       };
 
     const char *instance_extensions[] = {
@@ -108,5 +109,30 @@ _Bool vtk_device_init(struct VtkDevice* device)
 
     CALL_VK(vkCreateDevice(device->vk_physical_device, &deviceCreateInfo, NULL, &device->vk_device));
     vkGetDeviceQueue(device->vk_device, device->queue_family_index, 0, &device->vk_queue);
-    return true;
+
+    return device;
+}
+
+struct VtkWindowNative* vtk_window_init(struct VtkDeviceNative* vtk_device) {
+   struct VtkWindowNative* vtk_window = malloc(sizeof(struct VtkWindowNative));
+   vtk_window->vtk_device = vtk_device;
+   printf("vtk_window in init: %p\n", vtk_window);
+   printf("vtk_device in init: %p\n", vtk_device);
+   printf("vtk_device in init2: %p\n", vtk_window->vtk_device);
+   vtk_window_init_platform(vtk_window);
+   printf("vtk_device in init3: %p\n", vtk_window->vtk_device);
+   return vtk_window;
+}
+
+VkShaderModule vtk_compile_shader(VkDevice a_device, uint8_t const* bytes, size_t size) {
+    VkShaderModuleCreateInfo vk_shader_module_create_info = {
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .pNext = NULL,
+            .flags = 0,
+            .codeSize = size,
+            .pCode = (const uint32_t *) bytes,
+    };
+    VkShaderModule result;
+    CALL_VK(vkCreateShaderModule(a_device, &vk_shader_module_create_info, NULL, &result));
+    return result;
 }
