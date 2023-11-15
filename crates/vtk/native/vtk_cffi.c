@@ -116,11 +116,7 @@ struct VtkDeviceNative* vtk_device_init(struct VtkApplicationNative* vtk_applica
 struct VtkWindowNative* vtk_window_init(struct VtkDeviceNative* vtk_device) {
    struct VtkWindowNative* vtk_window = malloc(sizeof(struct VtkWindowNative));
    vtk_window->vtk_device = vtk_device;
-   printf("vtk_window in init: %p\n", vtk_window);
-   printf("vtk_device in init: %p\n", vtk_device);
-   printf("vtk_device in init2: %p\n", vtk_window->vtk_device);
    vtk_window_init_platform(vtk_window);
-   printf("vtk_device in init3: %p\n", vtk_window->vtk_device);
    return vtk_window;
 }
 

@@ -3,13 +3,21 @@
 
 #ifdef VTK_RUST_BINDGEN
 #include "vtk_cffi_vulkan.h"
-#else
+typedef void NSApplication;
+typedef void VtkViewController;
+#else // VTK_RUST_BINDGEN
 #include "vulkan_wrapper.h"
-#endif
+#ifdef __APPLE__
+#include <Cocoa/Cocoa.h>
+#include "vtk_mac.h"
+#endif // __APPLE__
+#endif // VTK_RUST_BINDGEN
 
 struct VtkApplicationNative {
-    /** Null-terminated, static string. <div rustbindgen private> */
-    void* platform_specific;
+#ifdef __APPLE__
+    /** <div rustbindgen private> */
+    NSApplication* ns_application;
+#endif
 };
 
 struct VtkDeviceNative {
@@ -25,11 +33,24 @@ struct VtkWindowNative {
     struct VtkDeviceNative* vtk_device;
     uint32_t width;
     uint32_t height;
+
     VkSurfaceKHR vk_surface;
+    enum VkFormat vk_surface_format;
+
+    uint8_t num_swap_chain_images;
     VkSwapchainKHR vk_swapchain;
+    VkImage* vk_swap_chain_images;
+    VkImageView *vk_swap_chain_images_views;
+    struct VkExtent2D vk_extent_2d;
+    VkFramebuffer *vk_swap_chain_framebuffers;
+
+#ifdef __APPLE__
     /** Platform-specific data. <div rustbindgen private> */
-    void* platform_specific;
+    VtkViewController* vtk_view_controller;
+    NSApplication* ns_application;
+#endif
 };
+
 
 /** Null-terminated, static string. <div rustbindgen private> */
 VkShaderModule vtk_compile_shader(VkDevice vk_device, uint8_t const* bytes, size_t size);

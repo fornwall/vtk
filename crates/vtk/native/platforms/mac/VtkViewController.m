@@ -1,13 +1,14 @@
-#import "VtkViewController.h"
 #import <QuartzCore/CAMetalLayer.h>
 #import <CoreVideo/CVDisplayLink.h>
 
 // Gamepad - but extract to own files
 // #import <IOKit/hid/IOHIDLib.h>
 
+#include "vtk_cffi.h"
+#include "vtk_mac.h"
 #include "vtk_log.h"
 #include "rustffi.h"
-#include "vulkan_main.h"
+#include "vtk_internal.h"
 
 #include <MoltenVK/mvk_vulkan.h>
 
@@ -23,17 +24,9 @@
     self.view.wantsLayer = YES; // Back the view with a layer created by the makeBackingLayer method.
 
     struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
-    printf("vtk_window in viewWill: %p\n", vtk_window);
-    printf("vtk_device in viewWill: %p\n", vtk_device);
 }
 
 - (void)viewDidAppear {
-    printf("vtk_window->width in view: %p\n", vtk_window->width);
-    printf("vtk_window->height in view: %p\n", vtk_window->height);
-    struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
-    printf("vtk_window in view: %p\n", vtk_window);
-    printf("vtk_device in view: %p\n", vtk_device);
-
     // If this value is set to zero, the Vtk will render frames until the window is closed.
     // If this value is not zero, it establishes a maximum number of frames that will be
     // rendered, and once this count has been reached, the Vtk will stop rendering.
@@ -43,9 +36,7 @@
     _stop = NO;
     _frameCount = 0;
 
-    //printf("vk_instance in view: %p\n", vtk_device->vk_instance);
     const CAMetalLayer* metal_layer = (const CAMetalLayer*) self.view.layer;
-    printf("Metal layer: %p\n", metal_layer);
 
     VkMetalSurfaceCreateInfoEXT surface_create_info = {
         .sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT,
@@ -54,14 +45,14 @@
         .pLayer = metal_layer,
     };
 
+    struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
     CALL_VK(vkCreateMetalSurfaceEXT(vtk_device->vk_instance, &surface_create_info, NULL, &vtk_window->vk_surface));
+    vtk_create_swap_chain(vtk_window);
     //init_window((const CAMetalLayer*) self.view.layer);
 
-    printf("viewDidAppear 4\n");
     CVDisplayLinkCreateWithActiveCGDisplays(&_displayLink);
     CVDisplayLinkSetOutputCallback(_displayLink, &DisplayLinkCallback, self);
     CVDisplayLinkStart(_displayLink);
-    printf("viewDidAppear 5\n");
 }
 
 -(void)loadView

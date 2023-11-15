@@ -358,6 +358,8 @@ fn main() {
         cc.file("native/platforms/mac/vtk_mac.m");
         println!("cargo:rerun-if-changed=native/platforms/mac/VtkViewController.m");
         cc.file("native/platforms/mac/VtkViewController.m");
+
+        cc.flag("-xobjective-c");
     }
 
     println!("cargo:rustc-link-lib=framework=Metal");
@@ -372,6 +374,8 @@ fn main() {
     println!("cargo:rerun-if-changed=native/vtk_cffi.h");
     println!("cargo:rerun-if-changed=native/vtk_cffi.c");
     cc.file("native/vtk_cffi.c");
+    println!("cargo:rerun-if-changed=native/vtk_vulkan_setup.c");
+    cc.file("native/vtk_vulkan_setup.c");
 
     // TODO: Make sanitize a feature or depend on build profile?
     //       Probably feature, to avoid flexibility

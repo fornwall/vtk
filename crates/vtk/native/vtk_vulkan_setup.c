@@ -1,7 +1,7 @@
 #include "vtk_log.h"
 #include "vtk_cffi.h"
 #include "vtk_array.h"
-#include "vtk_vulkan_setup.h"
+#include "vtk_internal.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -16,8 +16,8 @@ void set_image_layout(VkCommandBuffer cmdBuffer, VkImage image,
                       VkPipelineStageFlags srcStages,
                       VkPipelineStageFlags destStages);
 
-void vtk_create_swap_chain(struct VtkWindow* vtk_window) {
-    struct VtkDevice* vtk_device = vtk_window->vtk_device;
+void vtk_create_swap_chain(struct VtkWindowNative* vtk_window) {
+    struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
 
     memset(&vtk_window->vk_swapchain, 0, sizeof(vtk_window->vk_swapchain));
 
@@ -27,7 +27,7 @@ void vtk_create_swap_chain(struct VtkWindow* vtk_window) {
     uint32_t format_count = 0;
     CALL_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(vtk_device->vk_physical_device, vtk_window->vk_surface, &format_count, NULL))
     VkSurfaceFormatKHR *formats = VTK_ARRAY_ALLOC(VkSurfaceFormatKHR, format_count);
-    CALL_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(device.vk_physical_device, device.vk_surface, &format_count, formats))
+    CALL_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(vtk_device->vk_physical_device, vtk_window->vk_surface, &format_count, formats))
 
     uint32_t chosenFormat;
     for (chosenFormat = 0; chosenFormat < format_count; chosenFormat++) {
@@ -35,8 +35,8 @@ void vtk_create_swap_chain(struct VtkWindow* vtk_window) {
     }
     assert(chosenFormat < format_count);
 
-    vtk_window->vk_swapchain.vk_extend_2d = vk_surface_capabilities.currentExtent;
-    vtk_window->vk_swapchain.vk_format = formats[chosenFormat].format;
+    vtk_window->vk_extent_2d = vk_surface_capabilities.currentExtent;
+    vtk_window->vk_surface_format = formats[chosenFormat].format;
 
     VkSurfaceCapabilitiesKHR surfaceCap;
     CALL_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vtk_device->vk_physical_device, vtk_window->vk_surface, &surfaceCap))
@@ -46,7 +46,7 @@ void vtk_create_swap_chain(struct VtkWindow* vtk_window) {
     VkSwapchainCreateInfoKHR swapchainCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             .pNext = NULL,
-            .surface = device.vk_surface,
+            .surface = vtk_window->vk_surface,
             .minImageCount = vk_surface_capabilities.minImageCount,
             .imageFormat = formats[chosenFormat].format,
             .imageColorSpace = formats[chosenFormat].colorSpace,
@@ -55,7 +55,7 @@ void vtk_create_swap_chain(struct VtkWindow* vtk_window) {
             .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
             .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .queueFamilyIndexCount = 1,
-            .pQueueFamilyIndices = &device.queueFamilyIndex_,
+            .pQueueFamilyIndices = &vtk_device->queue_family_index,
             // Handle rotation ourselves for best performance, see:
             // https://developer.android.com/games/optimize/vulkan-prerotation
             .preTransform = vk_surface_capabilities.currentTransform,
@@ -67,20 +67,22 @@ void vtk_create_swap_chain(struct VtkWindow* vtk_window) {
 
     CALL_VK(vkCreateSwapchainKHR(vtk_device->vk_device, &swapchainCreateInfo, NULL, &vtk_window->vk_swapchain))
 
-    CALL_VK(vkGetSwapchainImagesKHR(vtk_device->vk_device, vtk_window->vk_swapchain, &vtk_window->vk_swapchain.num_images, NULL))
+    uint32_t num_images;
+    CALL_VK(vkGetSwapchainImagesKHR(vtk_device->vk_device, vtk_window->vk_swapchain, &num_images, NULL))
+    vtk_window->num_swap_chain_images = (uint8_t) num_images;
 
-    vtk_window->vk_swapchain.vk_images = VTK_ARRAY_ALLOC(VkImage, vtk_window->vk_swapchain.num_images);
-    CALL_VK(vkGetSwapchainImagesKHR(vtk_device->vk_device, vtk_window->vk_swapchain, &vtk_window->vk_swapchain.num_images, vtk_window->vk_swapchain.vk_images))
+    vtk_window->vk_swap_chain_images = VTK_ARRAY_ALLOC(VkImage, num_images);
+    CALL_VK(vkGetSwapchainImagesKHR(vtk_device->vk_device, vtk_window->vk_swapchain, &num_images, vtk_window->vk_swap_chain_images))
 
-    vtk_window->vk_swapchain.vk_image_views = VTK_ARRAY_ALLOC(VkImageView, vtk_window->vk_swapchain.num_images)
-    for (uint32_t i = 0; i < vtk_window->vk_swapchain.num_images; i++) {
+    vtk_window->vk_swap_chain_images_views = VTK_ARRAY_ALLOC(VkImageView, num_images);
+    for (uint32_t i = 0; i < num_images; i++) {
         VkImageViewCreateInfo vk_image_view_create_info = {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
                 .pNext = NULL,
                 .flags = 0,
-                .image = vtk_window->vk_swapchain.vk_images[i],
+                .image = vtk_window->vk_swap_chain_images[i],
                 .viewType = VK_IMAGE_VIEW_TYPE_2D,
-                .format = vtk_window->vk_swapchain.vk_format,
+                .format = vtk_window->vk_surface_format,
                 .components = {
                         .r = VK_COMPONENT_SWIZZLE_R,
                         .g = VK_COMPONENT_SWIZZLE_G,
@@ -95,34 +97,35 @@ void vtk_create_swap_chain(struct VtkWindow* vtk_window) {
                         .layerCount = 1,
                 },
         };
-        CALL_VK(vkCreateImageView(vtk_device->vk_device, &vk_image_view_create_info, NULL, &vtk_window->vk_swapchain.vk_image_views[i]))
+        CALL_VK(vkCreateImageView(vtk_device->vk_device, &vk_image_view_create_info, NULL, &vtk_window->vk_swap_chain_images_views[i]))
     }
 
     free(formats);
 }
 
-void vtk_delete_swap_chain(struct VtkWindow* vtk_window) {
-    struct VtkDevice* vtk_device = vtk_window->vtk_device;
+void vtk_delete_swap_chain(struct VtkWindowNative* vtk_window) {
+    struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
 
-    for (uint32_t i = 0; i < vtk_window->vk_swapchain.num_images; i++) {
-        vkDestroyFramebuffer(vtk_device->vk_device, vtk_window->vk_swapchain.vk_framebuffers[i], NULL);
-        vkDestroyImageView(vtk_device->vk_device, vtk_window->vk_swapchain.vk_image_views[i], NULL);
+    for (uint32_t i = 0; i < vtk_window->num_swap_chain_images; i++) {
+        vkDestroyFramebuffer(vtk_device->vk_device, vtk_window->vk_swap_chain_framebuffers[i], NULL);
+        vkDestroyImageView(vtk_device->vk_device, vtk_window->vk_swap_chain_images_views[i], NULL);
         // https://github.com/KhronosGroup/Vulkan-ValidationLayers/issues/2718
         // TODO: Delete not presentable image here?
         // vkDestroyImage(device.vk_device, swapchain.vk_images[i], NULL);
     }
-    vkDestroySwapchainKHR(vtk_device->vk_device, vtk_window->vk_swapchain.vk_swapchain, NULL);
+    vkDestroySwapchainKHR(vtk_device->vk_device, vtk_window->vk_swapchain, NULL);
 
-    free(vtk_window->vk_swapchain.vk_framebuffers);
-    free(vtk_window->vk_swapchain.vk_image_views);
-    free(vtk_window->vk_swapchain.vk_images);
+    free(vtk_window->vk_swap_chain_framebuffers);
+    free(vtk_window->vk_swap_chain_images_views);
+    free(vtk_window->vk_swap_chain_images);
 
-    vtk_window->vk_swapchain.vk_framebuffers = NULL;
-    vtk_window->vk_swapchain.vk_image_views = NULL;
-    vtk_window->vk_swapchain.vk_images = NULL;
+    //vtk_window->vk_swapchain.vk_framebuffers = NULL;
+    //vtk_window->vk_swapchain.vk_image_views = NULL;
+    //vtk_window->vk_swapchain.vk_images = NULL;
     // Note that vk_swapchain is just a handle, not a pointer.
 }
 
+/*
 void vtk_create_frame_buffers(VkRenderPass vk_render_pass) {
     VkImageView depth_view = VK_NULL_HANDLE;
     // create a framebuffer from each swapchain image
@@ -474,8 +477,7 @@ void vtk_create_graphics_pipeline() {
 
     // VkPipelineCacheCreateInfo pipelineCacheInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO, .pNext = NULL, .flags = 0,  // reserved, must be 0 .initialDataSize = 0, .pInitialData = NULL, };
     //CALL_VK(vkCreatePipelineCache(device.vk_device, &pipelineCacheInfo, NULL, &gfxPipeline.vk_pipeline_cache));
-    CALL_VK(vkCreateGraphicsPipelines(device.vk_device, NULL /*gfxPipeline.vk_pipeline_cache*/, 1, &pipelineCreateInfo, NULL,
-                                      &gfxPipeline.vk_pipeline))
+    CALL_VK(vkCreateGraphicsPipelines(device.vk_device, NULL, 1, &pipelineCreateInfo, NULL, &gfxPipeline.vk_pipeline))
 
     // We don't need the shaders anymore, we can release their memory
     vkDestroyShaderModule(device.vk_device, vertexShader, NULL);
@@ -785,10 +787,8 @@ void draw_frame() {
     }
 }
 
-/*
- * set_image_layout():
- *    Helper function to transition color buffer layout
- */
+// set_image_layout():
+//    Helper function to transition color buffer layout
 void set_image_layout(VkCommandBuffer cmdBuffer,
                       VkImage image,
                       VkImageLayout oldImageLayout,
@@ -853,3 +853,4 @@ void set_image_layout(VkCommandBuffer cmdBuffer,
 
     vkCmdPipelineBarrier(cmdBuffer, srcStages, destStages, 0, 0, NULL, 0, NULL, 1, &vk_image_memory_barrier);
 }
+*/
