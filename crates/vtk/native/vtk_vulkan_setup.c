@@ -341,38 +341,37 @@ void vtk_create_graphics_pipeline(struct VtkWindowNative* vtk_window) {
     vkDestroyShaderModule(vtk_window->vtk_device->vk_device, fragmentShader, NULL);
 }
 
+void vtk_create_frame_buffers(struct VtkWindowNative* vtk_window) {
+    VkImageView depth_view = VK_NULL_HANDLE;
+    // create a framebuffer from each swapchain image
+    vtk_window->vk_swap_chain_framebuffers = VTK_ARRAY_ALLOC(VkFramebuffer, vtk_window->num_swap_chain_images);
+    for (uint32_t i = 0; i < vtk_window->num_swap_chain_images; i++) {
+        VkImageView attachments[2] = {
+                vtk_window->vk_swap_chain_images_views[i],
+                depth_view,
+        };
+        VkFramebufferCreateInfo vk_frame_buffer_create_info = {
+                .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                .pNext = NULL,
+                .renderPass = vtk_window->vk_surface_render_pass,
+                .attachmentCount = 1,  // 2 if using depth
+                .pAttachments = attachments,
+                .width = (uint32_t) vtk_window->vk_extent_2d.width,
+                .height = (uint32_t) vtk_window->vk_extent_2d.height,
+                .layers = 1,
+        };
+        vk_frame_buffer_create_info.attachmentCount = (depth_view == VK_NULL_HANDLE ? 1 : 2);
+
+        CALL_VK(vkCreateFramebuffer(vtk_window->vtk_device->vk_device, &vk_frame_buffer_create_info, NULL, &vtk_window->vk_swap_chain_framebuffers[i]));
+    }
+}
+
 void vtk_setup_window_rendering(struct VtkWindowNative* vtk_window) {
     vtk_create_swap_chain(vtk_window);
     vtk_create_surface_render_pass(vtk_window);
 }
 
 /*
-void vtk_create_frame_buffers(VkRenderPass vk_render_pass) {
-    VkImageView depth_view = VK_NULL_HANDLE;
-    // create a framebuffer from each swapchain image
-    swapchain.vk_framebuffers = (VkFramebuffer *) malloc(sizeof(VkFramebuffer) * swapchain.num_images);
-    for (uint32_t i = 0; i < swapchain.num_images; i++) {
-        VkImageView attachments[2] = {
-                swapchain.vk_image_views[i],
-                depth_view,
-        };
-        VkFramebufferCreateInfo vk_frame_buffer_create_info = {
-                .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-                .pNext = NULL,
-                .renderPass = vk_render_pass,
-                .attachmentCount = 1,  // 2 if using depth
-                .pAttachments = attachments,
-                .width = (uint32_t) swapchain.vk_extend_2d.width,
-                .height = (uint32_t) swapchain.vk_extend_2d.height,
-                .layers = 1,
-        };
-        vk_frame_buffer_create_info.attachmentCount = (depth_view == VK_NULL_HANDLE ? 1 : 2);
-
-        CALL_VK(vkCreateFramebuffer(device.vk_device, &vk_frame_buffer_create_info, NULL,
-                                    &swapchain.vk_framebuffers[i]));
-    }
-}
-
 // A helper function
 bool MapMemoryTypeToIndex(uint32_t typeBits, VkFlags requirements_mask, uint32_t *typeIndex) {
     VkPhysicalDeviceMemoryProperties memoryProperties;
@@ -522,187 +521,6 @@ VkShaderModule compile_shader(VkDevice a_device, uint8_t *bytes, size_t size) {
     VkShaderModule result;
     CALL_VK(vkCreateShaderModule(a_device, &vk_shader_module_create_info, NULL, &result));
     return result;
-}
-
-void vtk_create_graphics_pipeline() {
-    memset(&gfxPipeline, 0, sizeof(gfxPipeline));
-    // Create pipeline layout (empty)
-    VkPipelineLayoutCreateInfo vk_pipeline_layout_create_info = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .pNext = NULL,
-            .setLayoutCount = 0,
-            .pSetLayouts = NULL,
-            .pushConstantRangeCount = 0,
-            .pPushConstantRanges = NULL,
-    };
-    CALL_VK(vkCreatePipelineLayout(device.vk_device, &vk_pipeline_layout_create_info, NULL, &gfxPipeline.vk_pipeline_layout));
-
-    VkShaderModule vertexShader, fragmentShader;
-    load_shader_from_file("out/shaders/triangle.vert.spv", &vertexShader);
-    load_shader_from_file("out/shaders/triangle.frag.spv", &fragmentShader);
-
-    // Specify vertex and fragment shader stages
-    VkPipelineShaderStageCreateInfo shader_stages[] = {
-            {
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .pNext = NULL,
-                    .flags = 0,
-                    .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                    .module = vertexShader,
-                    .pName = "main",
-                    .pSpecializationInfo = NULL,
-            },
-            {
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .pNext = NULL,
-                    .flags = 0,
-                    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                    .module = fragmentShader,
-                    .pName = "main",
-                    .pSpecializationInfo = NULL,
-            }};
-
-    VkViewport viewports = {
-            .x = 0,
-            .y = 0,
-            .width = (float) swapchain.vk_extend_2d.width,
-            .height = (float) swapchain.vk_extend_2d.height,
-            .minDepth = 0.0f,
-            .maxDepth = 1.0f,
-    };
-
-    VkRect2D scissor = {
-            .offset = {.x = 0, .y = 0},
-            .extent = swapchain.vk_extend_2d,
-    };
-
-    // Specify viewport info
-    VkPipelineViewportStateCreateInfo viewportInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-            .pNext = NULL,
-            .viewportCount = 1,
-            .pViewports = &viewports,
-            .scissorCount = 1,
-            .pScissors = &scissor,
-    };
-
-    // Specify multisample info
-    VkSampleMask sampleMask = ~0u;
-    VkPipelineMultisampleStateCreateInfo multisampleInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-            .pNext = NULL,
-            .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
-            .sampleShadingEnable = VK_FALSE,
-            .minSampleShading = 0,
-            .pSampleMask = &sampleMask,
-            .alphaToCoverageEnable = VK_FALSE,
-            .alphaToOneEnable = VK_FALSE,
-    };
-
-    // Specify color blend state
-    VkPipelineColorBlendAttachmentState attachmentStates = {
-            .blendEnable = VK_FALSE,
-            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                              VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
-    };
-    VkPipelineColorBlendStateCreateInfo colorBlendInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-            .pNext = NULL,
-            .flags = 0,
-            .logicOpEnable = VK_FALSE,
-            .logicOp = VK_LOGIC_OP_COPY,
-            .attachmentCount = 1,
-            .pAttachments = &attachmentStates,
-    };
-
-    // Specify rasterizer info
-    VkPipelineRasterizationStateCreateInfo rasterInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-            .pNext = NULL,
-            .depthClampEnable = VK_FALSE,
-            .rasterizerDiscardEnable = VK_FALSE,
-            .polygonMode = VK_POLYGON_MODE_FILL,
-            .cullMode = VK_CULL_MODE_NONE,
-            .frontFace = VK_FRONT_FACE_CLOCKWISE,
-            .depthBiasEnable = VK_FALSE,
-            .lineWidth = 1,
-    };
-
-    // Specify input assembler state
-    VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-            .pNext = NULL,
-            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-            .primitiveRestartEnable = VK_FALSE,
-    };
-
-    // Specify vertex input state
-    VkVertexInputBindingDescription vk_vertex_input_binding_descriptions[] = {
-            {
-                    .binding = 0,
-                    .stride = 3 * sizeof(float),
-                    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-            },
-            {
-                    .binding = 1,
-                    .stride = 3 * sizeof(float),
-                    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-            }
-    };
-
-    VkVertexInputAttributeDescription vk_vertex_input_attribute_descriptions[] = {
-            {
-                    .binding = 0,
-                    .location = 0,
-                    .format = VK_FORMAT_R32G32B32_SFLOAT,
-                    .offset = 0,
-            },
-            {
-                    .binding = 1,
-                    .location = 1,
-                    .format = VK_FORMAT_R32G32B32_SFLOAT,
-                    .offset = 0,
-            },
-    };
-
-    VkPipelineVertexInputStateCreateInfo vk_pipeline_vertex_input_state_create_info = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            .pNext = NULL,
-            .vertexBindingDescriptionCount = VK_WRAP_ARRAY_SIZE(vk_vertex_input_binding_descriptions),
-            .pVertexBindingDescriptions = vk_vertex_input_binding_descriptions,
-            .vertexAttributeDescriptionCount = VK_WRAP_ARRAY_SIZE(vk_vertex_input_attribute_descriptions),
-            .pVertexAttributeDescriptions = vk_vertex_input_attribute_descriptions,
-    };
-
-    VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
-            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-            .pNext = NULL,
-            .flags = 0,
-            .stageCount = 2,
-            .pStages = shader_stages,
-            .pVertexInputState = &vk_pipeline_vertex_input_state_create_info,
-            .pInputAssemblyState = &inputAssemblyInfo,
-            .pTessellationState = NULL,
-            .pViewportState = &viewportInfo,
-            .pRasterizationState = &rasterInfo,
-            .pMultisampleState = &multisampleInfo,
-            .pDepthStencilState = NULL,
-            .pColorBlendState = &colorBlendInfo,
-            .pDynamicState = NULL,
-            .layout = gfxPipeline.vk_pipeline_layout,
-            .renderPass = render.vk_render_pass,
-            .subpass = 0,
-            .basePipelineHandle = VK_NULL_HANDLE,
-            .basePipelineIndex = 0,
-    };
-
-    // VkPipelineCacheCreateInfo pipelineCacheInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO, .pNext = NULL, .flags = 0,  // reserved, must be 0 .initialDataSize = 0, .pInitialData = NULL, };
-    //CALL_VK(vkCreatePipelineCache(device.vk_device, &pipelineCacheInfo, NULL, &gfxPipeline.vk_pipeline_cache));
-    CALL_VK(vkCreateGraphicsPipelines(device.vk_device, NULL, 1, &pipelineCreateInfo, NULL, &gfxPipeline.vk_pipeline))
-
-    // We don't need the shaders anymore, we can release their memory
-    vkDestroyShaderModule(device.vk_device, vertexShader, NULL);
-    vkDestroyShaderModule(device.vk_device, fragmentShader, NULL);
 }
 
 void vtk_create_command_buffers(struct VtkWindow* vtk_window) {
