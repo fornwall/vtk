@@ -8,17 +8,19 @@
 
 #import "vtk_mac.h"
 
-struct VtkApplicationNative* vtk_application_init() {
+struct VtkContextNative* vtk_context_init(void* vtk_application) {
+    printf("INITIAL vtk_application: %p\n", vtk_application);
     id ns_application = [NSApplication sharedApplication];
     [ns_application setActivationPolicy:NSApplicationActivationPolicyRegular];
 
-    struct VtkApplicationNative* result = malloc(sizeof(struct VtkApplicationNative));
+    struct VtkContextNative* result = malloc(sizeof(struct VtkContextNative));
     result->ns_application = ns_application;
+    result->vtk_application = vtk_application;
     return result;
 }
 
-void vtk_application_run(struct VtkApplicationNative* vtk_application) {
-    NSApplication* ns_application = vtk_application->ns_application;
+void vtk_context_run(struct VtkContextNative* vtk_context) {
+    NSApplication* ns_application = vtk_context->ns_application;
     [ns_application activateIgnoringOtherApps:YES];
     [ns_application run];
 }
@@ -46,10 +48,5 @@ _Bool vtk_window_init_platform(struct VtkWindowNative* vtk_window) {
     [window makeFirstResponder: vtk_view];
 
     [((NSWindow*)window) center];
-
-    // Locked down full screen:
-    //[app setPresentationOptions:NSFullScreenWindowMask];
-    // Normal full screen:
-    //[window toggleFullScreen: nil];
     return true;
 }

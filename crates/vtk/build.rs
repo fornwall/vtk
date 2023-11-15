@@ -379,7 +379,7 @@ fn main() {
 
     // TODO: Make sanitize a feature or depend on build profile?
     //       Probably feature, to avoid flexibility
-    //cc.flag("-g");
+    cc.flag("-g");
     //cc.flag("-fsanitize=address");
     //cc.flag("-fsanitize=undefined");
 

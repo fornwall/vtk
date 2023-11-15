@@ -6,9 +6,10 @@
 #include "vtk_log.h"
 #include "vtk_internal.h"
 
-struct VtkDeviceNative* vtk_device_init(struct VtkApplicationNative* vtk_application)
+struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context)
 {
     struct VtkDeviceNative* device = malloc(sizeof(struct VtkDeviceNative));
+    device->vtk_context = vtk_context;
 
 #ifdef __ANDROID__
     if (!load_vulkan_symbols()) {
@@ -67,9 +68,8 @@ struct VtkDeviceNative* vtk_device_init(struct VtkApplicationNative* vtk_applica
     uint32_t queueFamilyCount;
     vkGetPhysicalDeviceQueueFamilyProperties(device->vk_physical_device, &queueFamilyCount, NULL);
     assert(queueFamilyCount);
-    VkQueueFamilyProperties *queueFamilyProperties = malloc(sizeof(VkQueueFamilyProperties) * queueFamilyCount);
+    VkQueueFamilyProperties* queueFamilyProperties = VTK_ARRAY_ALLOC(VkQueueFamilyProperties, queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device->vk_physical_device, &queueFamilyCount, queueFamilyProperties);
-
     uint32_t queue_family_idx;
     for (queue_family_idx = 0; queue_family_idx < queueFamilyCount; queue_family_idx++) {
         if (queueFamilyProperties[queue_family_idx].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
@@ -113,11 +113,17 @@ struct VtkDeviceNative* vtk_device_init(struct VtkApplicationNative* vtk_applica
     return device;
 }
 
-struct VtkWindowNative* vtk_window_init(struct VtkDeviceNative* vtk_device) {
+__attribute__ ((visibility ("default")))
+void vtk_window_init(struct VtkDeviceNative* vtk_device) {
    struct VtkWindowNative* vtk_window = malloc(sizeof(struct VtkWindowNative));
    vtk_window->vtk_device = vtk_device;
+
+    printf("UUUUU #####\nvtk_device: %p\n", vtk_device);
+    printf("vtk_context: %p\n", vtk_device->vtk_context);
+    printf("vtk_application: %p\n", vtk_device->vtk_context->vtk_application);
+    printf("vtk_window: %p\n", vtk_window);
+
    vtk_window_init_platform(vtk_window);
-   return vtk_window;
 }
 
 VkShaderModule vtk_compile_shader(VkDevice a_device, uint8_t const* bytes, size_t size) {

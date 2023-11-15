@@ -13,11 +13,18 @@ typedef void VtkViewController;
 #endif // __APPLE__
 #endif // VTK_RUST_BINDGEN
 
-struct VtkApplicationNative {
+struct VtkDeviceNative;
+struct VtkWindowNative;
+
+typedef void (*vtk_setup_callback)(struct VtkDeviceNative*, struct VtkWindowNative*);
+
+struct VtkContextNative {
 #ifdef __APPLE__
     /** <div rustbindgen private> */
     NSApplication* ns_application;
 #endif
+    void* vtk_application;
+    vtk_setup_callback setup_callback;
 };
 
 struct VtkDeviceNative {
@@ -27,6 +34,7 @@ struct VtkDeviceNative {
     VkDevice vk_device;
     uint32_t queue_family_index;
     VkQueue vk_queue;
+    struct VtkContextNative* vtk_context;
 };
 
 struct VtkWindowNative {
@@ -46,8 +54,7 @@ struct VtkWindowNative {
     VkImage* vk_swap_chain_images;
     VkImageView *vk_swap_chain_images_views;
     struct VkExtent2D vk_extent_2d;
-    VkFramebuffer *vk_swap_chain_framebuffers;
-
+    VkFramebuffer* vk_swap_chain_framebuffers;
 
 #ifdef __APPLE__
     /** Platform-specific data. <div rustbindgen private> */
@@ -60,13 +67,13 @@ struct VtkWindowNative {
 /** Null-terminated, static string. <div rustbindgen private> */
 VkShaderModule vtk_compile_shader(VkDevice vk_device, uint8_t const* bytes, size_t size);
 
-struct VtkApplicationNative* vtk_application_init();
+struct VtkContextNative* vtk_context_init(void* vtk_application);
 
 // Run the event loop.
-void vtk_application_run(struct VtkApplicationNative* application);
+void vtk_context_run(struct VtkContextNative* context);
 
-struct VtkDeviceNative* vtk_device_init(struct VtkApplicationNative* vtk_application);
+struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context);
 
-struct VtkWindowNative* vtk_window_init(struct VtkDeviceNative* vtk_device);
+void vtk_window_init(struct VtkDeviceNative* vtk_device);
 
 #endif

@@ -20,21 +20,9 @@
 /** Since this is a single-view app, initialize Vulkan as view is appearing. */
 -(void)viewWillAppear {
     [super viewWillAppear];
-
     self.view.wantsLayer = YES; // Back the view with a layer created by the makeBackingLayer method.
 
-    struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
-}
-
-- (void)viewDidAppear {
-    // If this value is set to zero, the Vtk will render frames until the window is closed.
-    // If this value is not zero, it establishes a maximum number of frames that will be
-    // rendered, and once this count has been reached, the Vtk will stop rendering.
-    // Once rendering is finished, the Vtk will delay cleaning up Vulkan objects until
-    // the window is closed.
-    _maxFrameCount = 0;
     _stop = NO;
-    _frameCount = 0;
 
     const CAMetalLayer* metal_layer = (const CAMetalLayer*) self.view.layer;
 
@@ -48,7 +36,12 @@
     struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
     CALL_VK(vkCreateMetalSurfaceEXT(vtk_device->vk_instance, &surface_create_info, NULL, &vtk_window->vk_surface));
     vtk_setup_window_rendering(vtk_window);
-    //init_window((const CAMetalLayer*) self.view.layer);
+
+    printf("#####\nvtk_device: %p\n", vtk_device);
+    printf("vtk_context: %p\n", vtk_device->vtk_context);
+    printf("vtk_application: %p\n", vtk_device->vtk_context->vtk_application);
+    printf("vtk_window: %p\n", vtk_window);
+    vtk_application_setup_window(vtk_device->vtk_context->vtk_application, vtk_device, vtk_window);
 
     CVDisplayLinkCreateWithActiveCGDisplays(&_displayLink);
     CVDisplayLinkSetOutputCallback(_displayLink, &DisplayLinkCallback, self);
@@ -85,13 +78,12 @@ static CVReturn DisplayLinkCallback(
         // Currently unused. Pass 0 __attribute__((unused)).
         CVOptionFlags* _flags_out __attribute__((unused)),
         // A pointer to app-defined data.
-        void* display_link_context __attribute__((unused))) {
+        void* display_link_context) {
     VtkViewController* view_controller = (VtkViewController*) display_link_context;
+    struct VtkWindowNative* vtk_window = view_controller->vtk_window;
+    struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
     if (view_controller->_stop == NO) {
-        // TODO: Draw Vtk_draw(&VtkVC->Vtk);
-        //printf("Is vulkan ready? %s\n", is_vulkan_ready() ? "yes" : "no");
-        //if (is_vulkan_ready()) draw_frame();
-        //view_controller->_stop = (view_controller->_maxFrameCount && ++view_controller->_frameCount >= view_controller->_maxFrameCount);
+        vtk_application_render_frame(vtk_device->vtk_context->vtk_application, vtk_device, vtk_window);
     }
     return kCVReturnSuccess;
 }
