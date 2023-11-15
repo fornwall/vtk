@@ -21,7 +21,9 @@
 -(void)viewWillAppear {
     [super viewWillAppear];
     self.view.wantsLayer = YES; // Back the view with a layer created by the makeBackingLayer method.
+}
 
+-(void) viewDidAppear {
     _stop = NO;
 
     const CAMetalLayer* metal_layer = (const CAMetalLayer*) self.view.layer;

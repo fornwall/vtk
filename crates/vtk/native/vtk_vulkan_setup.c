@@ -469,10 +469,11 @@ void vtk_create_sync(struct VtkWindowNative* vtk_window) {
 
 void vtk_setup_window_rendering(struct VtkWindowNative* vtk_window) {
     vtk_create_sync(vtk_window);
+    vtk_create_command_buffers(vtk_window);
+
     vtk_create_swap_chain(vtk_window);
     vtk_create_surface_render_pass(vtk_window);
     vtk_create_frame_buffers(vtk_window);
-    vtk_create_command_buffers(vtk_window);
     vtk_record_command_buffers(vtk_window);
 }
 
@@ -550,6 +551,7 @@ void vtk_terminate_window(struct VtkWindowNative* vtk_window) {
     vkDestroyCommandPool(vtk_window->vtk_device->vk_device, vtk_window->vk_command_pool, NULL);
     vkDestroyRenderPass(vtk_window->vtk_device->vk_device, vtk_window->vk_surface_render_pass, NULL);
 
+    vtk_delete_swap_chain(vtk_window);
     //delete_swap_chain();
     //delete_graphics_pipeline();
     //delete_vertex_buffers();
@@ -562,7 +564,7 @@ void vtk_terminate_window(struct VtkWindowNative* vtk_window) {
 void vtk_recreate_swap_chain(struct VtkWindowNative* vtk_window) {
     CALL_VK(vkDeviceWaitIdle(vtk_window->vtk_device->vk_device))
 
-    //delete_swap_chain();
+    vtk_delete_swap_chain(vtk_window);
     //delete_graphics_pipeline();
     //delete_command_buffers();
 
@@ -627,8 +629,11 @@ void vtk_render_frame(struct VtkWindowNative* vtk_window) {
         case VK_SUCCESS:
             break;
         case VK_SUBOPTIMAL_KHR:
+            LOGI("vkQueuePresentKHR() returned VK_SUBOPTIMAL_KHR - recreating...");
+            vtk_recreate_swap_chain(vtk_window);
+            break;
         case VK_ERROR_OUT_OF_DATE_KHR:
-            LOGI("vkQueuePresentKHR() returned VK_SUBOPTIMAL_KHR | VK_ERROR_OUT_OF_DATE_KHR - recreating...");
+            LOGI("vkQueuePresentKHR() returned VK_ERROR_OUT_OF_DATE_KHR - recreating...");
             vtk_recreate_swap_chain(vtk_window);
             break;
         default:
@@ -735,172 +740,12 @@ void delete_vertex_buffers(void) {
     vkDestroyBuffer(device.vk_device, buffers.vk_vertex_color_buffer, NULL);
 }
 
-void load_shader_from_file(const char *filePath, VkShaderModule *shaderOut) {
-#ifdef __ANDROID__
-    // struct android_app *androidAppCtx = NULL;
-    assert(androidAppCtx);
-    AAsset *file = AAssetManager_open(androidAppCtx->activity->assetManager, filePath, AASSET_MODE_BUFFER);
-    size_t fileLength = AAsset_getLength(file);
-
-    char *fileContent = malloc(fileLength);
-
-    AAsset_read(file, fileContent, fileLength);
-    AAsset_close(file);
-
-    VkShaderModuleCreateInfo vk_shader_module_create_info = {
-            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            .pNext = NULL,
-            .flags = 0,
-            .codeSize = fileLength,
-            .pCode = (const uint32_t *) fileContent,
-    };
-    CALL_VK(vkCreateShaderModule(device.vk_device, &vk_shader_module_create_info, NULL, shaderOut));
-
-    free(fileContent);
-#else
-#define MAXBUFLEN 100000
-    char source[MAXBUFLEN + 1];
-    FILE *fp = fopen(filePath, "r");
-    assert(fp != NULL);
-    size_t newLen = fread(source, sizeof(char), MAXBUFLEN, fp);
-    assert(ferror(fp) == 0);
-    source[newLen] = '\0';
-    VkShaderModuleCreateInfo vk_shader_module_create_info = {
-            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            .pNext = NULL,
-            .flags = 0,
-            .codeSize = newLen,
-            .pCode = (const uint32_t *) source,
-    };
-    CALL_VK(vkCreateShaderModule(device.vk_device, &vk_shader_module_create_info, NULL, shaderOut));
-    fclose(fp);
-#endif
-}
-
-
 void delete_graphics_pipeline(void) {
     if (gfxPipeline.vk_pipeline == VK_NULL_HANDLE) return;
     vkDestroyPipeline(device.vk_device, gfxPipeline.vk_pipeline, NULL);
     //vkDestroyPipelineCache(device.vk_device, gfxPipeline.vk_pipeline_cache, NULL);
     vkDestroyPipelineLayout(device.vk_device, gfxPipeline.vk_pipeline_layout, NULL);
     // TODO: free memory?
-}
-
-// init_window:
-//   Initialize Vulkan Context when android application window is created
-//   upon return, vulkan is ready to draw frames
-void init_window(
-#ifdef __ANDROID__
-        struct android_app *app
-#elif defined __APPLE__
-        const CAMetalLayer* metal_layer
-#else
-        struct wl_surface* wayland_surface,
-        struct wl_surface* wayland_display
-#endif
-) {
-#ifdef __ANDROID__
-    if (!load_vulkan_symbols()) {
-        LOGW("Vulkan is unavailable, install vulkan and re-start");
-        return;
-    }
-#endif
-
-    VkApplicationInfo app_info = {
-            .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-            .pNext = NULL,
-            .pApplicationName = "vulkan-example",
-            .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
-            .pEngineName = "vulkan-example",
-            .engineVersion = VK_MAKE_VERSION(0, 1, 0),
-            .apiVersion = VK_MAKE_VERSION(1, 1, 0),
-    };
-
-    create_vulkan_device(
-#ifdef __ANDROID__
-            app->window,
-#elif defined __APPLE__
-            metal_layer,
-#else
-            wayland_display,
-            wayland_surface,
-#endif
-            &app_info);
-
-    create_swap_chain();
-
-    VkAttachmentDescription vk_attachment_description = {
-            .format = swapchain.vk_format,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-    };
-
-    VkAttachmentReference vk_attachment_reference = {
-            .attachment = 0,
-            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-    };
-
-    VkSubpassDescription vk_subpass_description = {
-            .flags = 0,
-            .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-            .inputAttachmentCount = 0,
-            .pInputAttachments = NULL,
-            .colorAttachmentCount = 1,
-            .pColorAttachments = &vk_attachment_reference,
-            .pResolveAttachments = NULL,
-            .pDepthStencilAttachment = NULL,
-            .preserveAttachmentCount = 0,
-            .pPreserveAttachments = NULL,
-    };
-
-    VkRenderPassCreateInfo vk_render_pass_create_info = {
-            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-            .pNext = NULL,
-            .attachmentCount = 1,
-            .pAttachments = &vk_attachment_description,
-            .subpassCount = 1,
-            .pSubpasses = &vk_subpass_description,
-            .dependencyCount = 0,
-            .pDependencies = NULL,
-    };
-    CALL_VK(vkCreateRenderPass(device.vk_device, &vk_render_pass_create_info, NULL, &render.vk_render_pass))
-
-    create_frame_buffers(render.vk_render_pass);
-
-    create_vertex_buffer();
-
-    create_graphics_pipeline();
-
-    create_command_buffers();
-
-    // We need to create a fence to be able, in the main loop, to wait for our
-    // draw command(s) to finish before swapping the framebuffers
-    VkFenceCreateInfo vk_fence_create_info = {
-            .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-            .pNext = NULL,
-            .flags = VK_FENCE_CREATE_SIGNALED_BIT,
-    };
-    CALL_VK(vkCreateFence(device.vk_device, &vk_fence_create_info, NULL, &render.vk_fence));
-
-    // We need to create a semaphore to be able to wait, in the main loop, for our
-    // framebuffer to be available for us before drawing.
-    VkSemaphoreCreateInfo vk_semaphore_create_info = {
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            .pNext = NULL,
-            .flags = 0,
-    };
-    CALL_VK(vkCreateSemaphore(device.vk_device, &vk_semaphore_create_info, NULL, &render.vk_semaphore));
-
-    device.initialized_ = true;
-}
-
-bool is_vulkan_ready() {
-    return device.initialized_;
 }
 
 void delete_command_buffers() {
@@ -934,72 +779,4 @@ void recreate_swap_chain() {
     create_graphics_pipeline();
     create_command_buffers();
 }
-
-void draw_frame() {
-    CALL_VK(vkWaitForFences(device.vk_device, 1, &render.vk_fence, VK_TRUE, UINT64_MAX))
-
-    uint32_t acquired_image_idx;
-    VkResult acquire_result = vkAcquireNextImageKHR(device.vk_device, swapchain.vk_swapchain, UINT64_MAX, render.vk_semaphore,
-                                                    VK_NULL_HANDLE, &acquired_image_idx);
-    switch (acquire_result) {
-        case VK_SUCCESS:
-            break;
-        case VK_ERROR_OUT_OF_DATE_KHR:
-            LOGI("vkAcquireNextImageKHR() returned VK_ERROR_OUT_OF_DATE_KHR - recreating... %d", 1);
-            // We cannot present it - recreate and return.
-            recreate_swap_chain();
-            break;
-        case VK_SUBOPTIMAL_KHR:
-            // Ok to go ahead and present image - recreate after present.
-            LOGI("vkAcquireNextImageKHR() returned VK_SUBOPTIMAL_KHR, %d", 1);
-            break;
-        default:
-            LOGE("vkAcquireNextImageKHR failed");
-            assert(false);
-            break;
-    }
-
-    CALL_VK(vkResetFences(device.vk_device, 1, &render.vk_fence))
-
-    VkPipelineStageFlags vk_pipeline_stage_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    VkSubmitInfo submit_info = {
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .pNext = NULL,
-            .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &render.vk_semaphore,
-            .pWaitDstStageMask = &vk_pipeline_stage_flags,
-            .commandBufferCount = 1,
-            .pCommandBuffers = &vtk_window->vk_command_buffers[acquired_image_idx],
-            .signalSemaphoreCount = 0,
-            .pSignalSemaphores = NULL
-    };
-    CALL_VK(vkQueueSubmit(device.vk_queue, 1, &submit_info, render.vk_fence))
-
-    VkResult result;
-    VkPresentInfoKHR presentInfo = {
-            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            .pNext = NULL,
-            .waitSemaphoreCount = 0,
-            .pWaitSemaphores = NULL,
-            .swapchainCount = 1,
-            .pSwapchains = &swapchain.vk_swapchain,
-            .pImageIndices = &acquired_image_idx,
-            .pResults = &result,
-    };
-    VkResult present_result = vkQueuePresentKHR(device.vk_queue, &presentInfo);
-    switch (present_result) {
-        case VK_SUCCESS:
-            break;
-        case VK_SUBOPTIMAL_KHR:
-        case VK_ERROR_OUT_OF_DATE_KHR:
-            LOGI("vkQueuePresentKHR() returned VK_SUBOPTIMAL_KHR | VK_ERROR_OUT_OF_DATE_KHR - recreating...");
-            recreate_swap_chain();
-            break;
-        default:
-            LOGE("vkQueuePresentKHR failed");
-            assert(false);
-            break;
-    }
-}
-
 */
