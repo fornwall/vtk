@@ -277,7 +277,7 @@ fn main() {
 
     // bindgen - see https://rust-lang.github.io/rust-bindgen/tutorial-3.html
     let bindings = bindgen::Builder::default()
-        .clang_arg("-DVTK_CUSTOM_VULKAN_TYPES=1")
+        .clang_arg("-DVTK_RUST_BINDGEN=1")
         // The input header we would like to generate bindings for.
         .header("native/vtk_cffi.h")
         // Tell cargo to invalidate the built crate whenever any of the included header files changed.

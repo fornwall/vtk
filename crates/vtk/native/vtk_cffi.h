@@ -1,7 +1,7 @@
 #ifndef VTK_CFFI_INCLUDED
 #define VTK_CFFI_INCLUDED
 
-#ifdef VTK_CUSTOM_VULKAN_TYPES
+#ifdef VTK_RUST_BINDGEN
 #include "vtk_cffi_vulkan.h"
 #else
 #include "vulkan_wrapper.h"
