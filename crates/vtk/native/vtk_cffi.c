@@ -78,7 +78,7 @@ struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context)
     }
     free(queueFamilyProperties);
     assert(queue_family_idx < queueFamilyCount);
-    device->queue_family_index = queue_family_idx;
+    device->graphics_queue_family_idx = queue_family_idx;
 
     float priorities[] = {1.0f};
 
@@ -108,7 +108,21 @@ struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context)
     };
 
     CALL_VK(vkCreateDevice(device->vk_physical_device, &deviceCreateInfo, NULL, &device->vk_device));
-    vkGetDeviceQueue(device->vk_device, device->queue_family_index, 0, &device->vk_queue);
+    vkGetDeviceQueue(device->vk_device, device->graphics_queue_family_idx, 0, &device->vk_queue);
+
+    VkCommandPoolCreateInfo vk_command_pool_create_info = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .pNext = NULL,
+            // There are two possible flags for command pools:
+            // - VK_COMMAND_POOL_CREATE_TRANSIENT_BIT: Hint that command buffers are rerecorded
+            //    with new commands very often (may change memory allocation behavior).
+            // - VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT: Allow command buffers to be
+            //   rerecorded individually, without this flag they all have to be reset together.
+            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+            .queueFamilyIndex = device->graphics_queue_family_idx,
+    };
+    CALL_VK(vkCreateCommandPool(device->vk_device, &vk_command_pool_create_info, NULL, &device->vk_command_pool));
+    // TODO: Cleanup with VkDestroyCommandPool
 
     return device;
 }

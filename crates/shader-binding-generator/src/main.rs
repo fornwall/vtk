@@ -9,7 +9,6 @@ fn main() {
     let mut offset = 0;
     for entry_point in module.entry_points.iter() {
         for arg in entry_point.function.arguments.iter() {
-            //println!("ARGUMENT: {:?}", arg);
             //let arg_type = module.types.get(arg.ty.into());
             let arg_type = &module.types[arg.ty];
 

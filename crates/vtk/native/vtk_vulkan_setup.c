@@ -57,7 +57,7 @@ void vtk_create_swap_chain(struct VtkWindowNative* vtk_window) {
             .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
             .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .queueFamilyIndexCount = 1,
-            .pQueueFamilyIndices = &vtk_device->queue_family_index,
+            .pQueueFamilyIndices = &vtk_device->graphics_queue_family_idx,
             // Handle rotation ourselves for best performance, see:
             // https://developer.android.com/games/optimize/vulkan-prerotation
             .preTransform = vk_surface_capabilities.currentTransform,
@@ -76,7 +76,11 @@ void vtk_create_swap_chain(struct VtkWindowNative* vtk_window) {
     vtk_window->vk_swap_chain_images = VTK_ARRAY_ALLOC(VkImage, num_images);
     CALL_VK(vkGetSwapchainImagesKHR(vtk_device->vk_device, vtk_window->vk_swapchain, &num_images, vtk_window->vk_swap_chain_images))
 
+    VkImageView depth_view = VK_NULL_HANDLE;
+
     vtk_window->vk_swap_chain_images_views = VTK_ARRAY_ALLOC(VkImageView, num_images);
+    vtk_window->vk_swap_chain_framebuffers = VTK_ARRAY_ALLOC(VkFramebuffer, num_images);
+
     for (uint32_t i = 0; i < num_images; i++) {
         VkImageViewCreateInfo vk_image_view_create_info = {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -100,11 +104,7 @@ void vtk_create_swap_chain(struct VtkWindowNative* vtk_window) {
                 },
         };
         CALL_VK(vkCreateImageView(vtk_device->vk_device, &vk_image_view_create_info, NULL, &vtk_window->vk_swap_chain_images_views[i]))
-    }
 
-    VkImageView depth_view = VK_NULL_HANDLE;
-    vtk_window->vk_swap_chain_framebuffers = VTK_ARRAY_ALLOC(VkFramebuffer, vtk_window->num_swap_chain_images);
-    for (uint32_t i = 0; i < vtk_window->num_swap_chain_images; i++) {
         VkImageView attachments[2] = {
                 vtk_window->vk_swap_chain_images_views[i],
                 depth_view,
@@ -113,14 +113,12 @@ void vtk_create_swap_chain(struct VtkWindowNative* vtk_window) {
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
                 .pNext = NULL,
                 .renderPass = vtk_window->vk_surface_render_pass,
-                .attachmentCount = 1,  // 2 if using depth
+                .attachmentCount = (depth_view == VK_NULL_HANDLE ? 1 : 2),
                 .pAttachments = attachments,
                 .width = (uint32_t) vtk_window->vk_extent_2d.width,
                 .height = (uint32_t) vtk_window->vk_extent_2d.height,
                 .layers = 1,
         };
-        vk_frame_buffer_create_info.attachmentCount = (depth_view == VK_NULL_HANDLE ? 1 : 2);
-
         CALL_VK(vkCreateFramebuffer(vtk_window->vtk_device->vk_device, &vk_frame_buffer_create_info, NULL, &vtk_window->vk_swap_chain_framebuffers[i]));
     }
 }
@@ -361,31 +359,18 @@ void vtk_create_graphics_pipeline(struct VtkWindowNative* vtk_window) {
     CALL_VK(vkCreateGraphicsPipelines(vtk_window->vtk_device->vk_device, NULL /*gfxPipeline.vk_pipeline_cache*/, 1, &pipelineCreateInfo, NULL, &vtk_window->vk_pipeline))
 
     // We don't need the shaders anymore, we can release their memory
-    vkDestroyShaderModule(vtk_window->vtk_device->vk_device, vertexShader, NULL);
-    vkDestroyShaderModule(vtk_window->vtk_device->vk_device, fragmentShader, NULL);
+    //vkDestroyShaderModule(vtk_window->vtk_device->vk_device, vertexShader, NULL);
+    //vkDestroyShaderModule(vtk_window->vtk_device->vk_device, fragmentShader, NULL);
 }
 
 void vtk_create_command_buffers(struct VtkWindowNative* vtk_window) {
-    VkCommandPoolCreateInfo vk_command_pool_create_info = {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-            .pNext = NULL,
-            // There are two possible flags for command pools:
-            // - VK_COMMAND_POOL_CREATE_TRANSIENT_BIT: Hint that command buffers are rerecorded with new commands
-            //    very often (may change memory allocation behavior).
-            // - VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT: Allow command buffers to be rerecorded individually,
-            //   without this flag they all have to be reset together.
-            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-            .queueFamilyIndex = vtk_window->vtk_device->queue_family_index,
-    };
-    CALL_VK(vkCreateCommandPool(vtk_window->vtk_device->vk_device, &vk_command_pool_create_info, NULL, &vtk_window->vk_command_pool));
-
     // In our case we create one command buffer per swap chain image.
     vtk_window->command_buffer_len = vtk_window->num_swap_chain_images;
     vtk_window->vk_command_buffers = VTK_ARRAY_ALLOC(VkCommandBuffer, vtk_window->num_swap_chain_images);
     VkCommandBufferAllocateInfo vk_command_buffers_allocate_info = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             .pNext = NULL,
-            .commandPool = vtk_window->vk_command_pool,
+            .commandPool = vtk_window->vtk_device->vk_command_pool,
             .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             .commandBufferCount = vtk_window->command_buffer_len,
     };
@@ -472,11 +457,12 @@ void vtk_setup_window_rendering_repeat(struct VtkWindowNative* vtk_window) {
 
 void vtk_setup_window_rendering(struct VtkWindowNative* vtk_window) {
     vtk_create_sync(vtk_window);
-    vtk_create_command_buffers(vtk_window);
     vtk_setup_surface_format(vtk_window);
     vtk_create_surface_render_pass(vtk_window);
 
-    vtk_setup_window_rendering_repeat(vtk_window);
+    vtk_create_swap_chain(vtk_window);
+    vtk_create_command_buffers(vtk_window);
+    vtk_record_command_buffers(vtk_window);
 }
 
 // set_image_layout():
@@ -547,10 +533,9 @@ void set_image_layout(VkCommandBuffer cmdBuffer,
 }
 
 void vtk_terminate_window(struct VtkWindowNative* vtk_window) {
-    vkFreeCommandBuffers(vtk_window->vtk_device->vk_device, vtk_window->vk_command_pool, vtk_window->command_buffer_len, vtk_window->vk_command_buffers);
+    vkFreeCommandBuffers(vtk_window->vtk_device->vk_device, vtk_window->vtk_device->vk_command_pool, vtk_window->command_buffer_len, vtk_window->vk_command_buffers);
     free(vtk_window->vk_command_buffers);
 
-    vkDestroyCommandPool(vtk_window->vtk_device->vk_device, vtk_window->vk_command_pool, NULL);
     vkDestroyRenderPass(vtk_window->vtk_device->vk_device, vtk_window->vk_surface_render_pass, NULL);
 
     vtk_delete_swap_chain(vtk_window);
@@ -644,18 +629,14 @@ void vtk_render_frame(struct VtkWindowNative* vtk_window) {
     }
 }
 
-/*
-// A helper function
-bool MapMemoryTypeToIndex(uint32_t typeBits, VkFlags requirements_mask, uint32_t *typeIndex) {
+bool MapMemoryTypeToIndex(VkPhysicalDevice* device, uint32_t typeBits, VkFlags requirements_mask, uint32_t *typeIndex) {
     VkPhysicalDeviceMemoryProperties memoryProperties;
-    vkGetPhysicalDeviceMemoryProperties(device.vk_physical_device, &memoryProperties);
-    // Search memtypes to find first index with those properties
-    for (uint32_t i = 0; i < 32; i++) {
-        if ((typeBits & 1) == 1) {
-            // Type is available, does it match user properties?
-            if ((memoryProperties.memoryTypes[i].propertyFlags & requirements_mask) ==
+    vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
+    for (uint32_t memory_index = 0; memory_index < memoryProperties.memoryTypeCount; memory_index++) {
+        if ((typeBits & (1 << memory_index)) == 1) {
+            if ((memoryProperties.memoryTypes[memory_index].propertyFlags & requirements_mask) ==
                 requirements_mask) {
-                *typeIndex = i;
+                *typeIndex = memory_index;
                 return true;
             }
         }
@@ -663,6 +644,9 @@ bool MapMemoryTypeToIndex(uint32_t typeBits, VkFlags requirements_mask, uint32_t
     }
     return false;
 }
+
+/*
+// A helper function
 
 void create_vertex_buffer() {
     // -----------------------------------------------

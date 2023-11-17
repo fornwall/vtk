@@ -32,7 +32,8 @@ struct VtkDeviceNative {
     VkInstance vk_instance;
     VkPhysicalDevice vk_physical_device;
     VkDevice vk_device;
-    uint32_t queue_family_index;
+    uint32_t graphics_queue_family_idx;
+    VkCommandPool vk_command_pool;
     VkQueue vk_queue;
     struct VtkContextNative* vtk_context;
 };
@@ -55,7 +56,6 @@ struct VtkWindowNative {
     struct VkExtent2D vk_extent_2d;
     VkFramebuffer* vk_swap_chain_framebuffers;
 
-    VkCommandPool vk_command_pool;
     VkCommandBuffer *vk_command_buffers;
     uint32_t command_buffer_len;
     VkSemaphore vk_semaphore;
