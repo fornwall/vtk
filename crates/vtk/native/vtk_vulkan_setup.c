@@ -188,14 +188,20 @@ void vtk_create_surface_render_pass(struct VtkWindowNative* vtk_window) {
     CALL_VK(vkCreateRenderPass(vtk_window->vtk_device->vk_device, &vk_render_pass_create_info, NULL, &vtk_window->vk_surface_render_pass))
 }
 
-void vtk_create_graphics_pipeline(struct VtkWindowNative* vtk_window) {
+void vtk_create_graphics_pipeline(struct VtkWindowNative* vtk_window, uint32_t push_constant_size) {
+	VkPushConstantRange vk_push_constant_range = {
+	    .offset = 0,
+	    .size = push_constant_size,
+	    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+	};
+
     VkPipelineLayoutCreateInfo vk_pipeline_layout_create_info = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .pNext = NULL,
             .setLayoutCount = 0,
             .pSetLayouts = NULL,
-            .pushConstantRangeCount = 0,
-            .pPushConstantRanges = NULL,
+            .pushConstantRangeCount = (push_constant_size == 0) ? 0 : 1,
+            .pPushConstantRanges = &vk_push_constant_range,
     };
     CALL_VK(vkCreatePipelineLayout(vtk_window->vtk_device->vk_device, &vk_pipeline_layout_create_info, NULL, &vtk_window->vk_pipeline_layout));
 
