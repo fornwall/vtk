@@ -146,7 +146,7 @@ void vtk_delete_swap_chain(struct VtkWindowNative* vtk_window) {
 }
 
 void vtk_create_surface_render_pass(struct VtkWindowNative* vtk_window) {
-    VkAttachmentDescription vk_attachment_description = {
+    VkAttachmentDescription vk_color_attachment_description = {
             .format = vtk_window->vk_surface_format,
             .samples = VK_SAMPLE_COUNT_1_BIT,
             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -157,9 +157,20 @@ void vtk_create_surface_render_pass(struct VtkWindowNative* vtk_window) {
             .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
     };
 
-    VkAttachmentReference vk_attachment_reference = {
+    VkAttachmentReference vk_color_attachment_reference = {
             .attachment = 0,
             .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    };
+
+    VkAttachmentDescription vk_depth_attachment_description = {
+            .format = vtk_window->vk_surface_format,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
     };
 
     VkSubpassDescription vk_subpass_description = {
@@ -168,7 +179,7 @@ void vtk_create_surface_render_pass(struct VtkWindowNative* vtk_window) {
             .inputAttachmentCount = 0,
             .pInputAttachments = NULL,
             .colorAttachmentCount = 1,
-            .pColorAttachments = &vk_attachment_reference,
+            .pColorAttachments = &vk_color_attachment_reference,
             .pResolveAttachments = NULL,
             .pDepthStencilAttachment = NULL,
             .preserveAttachmentCount = 0,
@@ -179,7 +190,7 @@ void vtk_create_surface_render_pass(struct VtkWindowNative* vtk_window) {
             .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
             .pNext = NULL,
             .attachmentCount = 1,
-            .pAttachments = &vk_attachment_description,
+            .pAttachments = &vk_color_attachment_description,
             .subpassCount = 1,
             .pSubpasses = &vk_subpass_description,
             .dependencyCount = 0,
@@ -417,6 +428,8 @@ void vtk_record_command_buffers(struct VtkWindowNative* vtk_window) {
         /*
         {
             vkCmdBindPipeline(vtk_window->vk_command_buffers[bufferIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, gfxPipeline.vk_pipeline);
+
+            //vkCmdPushConstants(cmd, _meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
 
             uint32_t first_binding = 0;
             VkBuffer new_buffers[2] = {buffers.vk_vertex_position_buffer, buffers.vk_vertex_color_buffer};
