@@ -43,8 +43,6 @@ fn main() {
     let mut cc = cc::Build::new();
 
     let out_dir = std::env::var("OUT_DIR").unwrap();
-    let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-
     // bindgen - see https://rust-lang.github.io/rust-bindgen/tutorial-3.html
     let bindings = bindgen::Builder::default()
         .clang_arg("-DVTK_RUST_BINDGEN=1")
@@ -72,6 +70,7 @@ fn main() {
         .insert("VTK_CUSTOM_VULKAN_TYPES".to_string(), "1".to_string());
     cbindgen_config.language = cbindgen::Language::C;
     cbindgen_config.macro_expansion.bitflags = true;
+    let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     cbindgen::generate_with_config(&crate_dir, cbindgen_config)
         .unwrap()
         .write_to_file(&output_file);
@@ -87,10 +86,7 @@ fn main() {
         let target_dir =
             Path::new(&out_dir).join(format!("vulkan-sdk-{}", MACOS_SDK_VERSION));
         download_prebuilt_molten(&target_dir);
-        let mut pb = PathBuf::from(
-            std::env::var("CARGO_MANIFEST_DIR").expect("unable to find env:CARGO_MANIFEST_DIR"),
-        );
-        pb.push(target_dir);
+        let mut pb: PathBuf = target_dir.into();
         pb.push("macOS/");
         let mut include_dir = pb.clone();
         include_dir.push("include");
