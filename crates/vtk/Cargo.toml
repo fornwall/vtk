@@ -16,8 +16,7 @@ crate-type = ["lib"]
 validation = []
 
 [dependencies]
-bitflags = "*"
-glam = "*"
+bitflags = "2"
 
 [build-dependencies]
 cc = "1.0"
