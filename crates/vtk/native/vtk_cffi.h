@@ -35,6 +35,10 @@ struct VtkDeviceNative {
     uint32_t graphics_queue_family_idx;
     VkCommandPool vk_command_pool;
     VkQueue vk_queue;
+    // One big vertex buffer, consisting of vertex_buffer_size bytes.
+    VkBuffer vk_vertex_buffer;
+    // The number of bytes in vk_vertex_buffer.
+    uint32_t vertex_buffer_size;
     struct VtkContextNative* vtk_context;
 };
 

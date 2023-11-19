@@ -4,10 +4,11 @@ struct TriangleApplication {
 
 impl vtk::VtkApplication for TriangleApplication {
     fn setup_window(&mut self, device: &mut vtk::VtkDevice, window: &mut vtk::VtkWindow) {
-        println!("Setup body - value = {}", self.value);
+        // println!("Setup body - value = {}", self.value);
     }
     fn render_frame(&mut self, device: &mut vtk::VtkDevice, window: &mut vtk::VtkWindow) {
-        println!("Render frame - value = {}", self.value);
+        self.value += 1;
+        //println!("Render frame - value = {}", self.value);
     }
 }
 
@@ -23,7 +24,5 @@ fn main() {
     let mut context = vtk::VtkContext::new(application);
     let mut device = context.create_device();
     context.request_window(&mut device);
-    println!("Starting run..");
     context.run();
-    println!("Finishing run..");
 }

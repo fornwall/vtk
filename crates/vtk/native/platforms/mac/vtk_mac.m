@@ -9,9 +9,10 @@
 #import "vtk_mac.h"
 
 struct VtkContextNative* vtk_context_init(void* vtk_application) {
-    printf("INITIAL vtk_application: %p\n", vtk_application);
     id ns_application = [NSApplication sharedApplication];
     [ns_application setActivationPolicy:NSApplicationActivationPolicyRegular];
+
+    vtk_load_vulkan_symbols();
 
     struct VtkContextNative* result = malloc(sizeof(struct VtkContextNative));
     result->ns_application = ns_application;

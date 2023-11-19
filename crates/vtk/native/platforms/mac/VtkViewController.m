@@ -10,7 +10,7 @@
 #include "rustffi.h"
 #include "vtk_internal.h"
 
-#include <MoltenVK/mvk_vulkan.h>
+// #include <MoltenVK/mvk_vulkan.h>
 
 #pragma mark -
 #pragma mark VtkViewController

@@ -31,7 +31,7 @@ void vtk_window_init(
     };
 
     char const *enabledLayerNames[] = {
-#ifdef ENABLE_VULKAN_VALIDATION_LAYERS
+#ifdef ENABLE_VULKAN_VALIDATION_LAYERS_NO
             "VK_LAYER_KHRONOS_validation"
 #endif
     };

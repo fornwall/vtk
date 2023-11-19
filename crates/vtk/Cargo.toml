@@ -1,11 +1,19 @@
 [package]
 name = "vtk"
 version = "0.1.0"
+license = "MIT"
+description = "Experimental Vulkan Toolkit"
+repository = "https://github.com/fornwall/vtk"
+rust-version = "1.74"
 authors = ["Fredrik Fornwall <fredrik@fornwall.net>"]
 edition = "2021"
 
 [lib]
 crate-type = ["lib"]
+
+[features]
+# If vulkan validation layers should be enabled:
+validation = []
 
 [dependencies]
 bitflags = "*"

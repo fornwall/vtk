@@ -1,26 +1,33 @@
 #ifndef VULKAN_WRAPPER_H
 #define VULKAN_WRAPPER_H
 
+#ifdef VTK_NO_VULKAN_LOADING
+// We are not using the vulkan loader
+#else
+// We are using the vulkan loader
+#define VK_NO_PROTOTYPES 1
+#endif
+
 #ifdef __ANDROID__
-# define VK_USE_PLATFORM_ANDROID_KHR
-# define VK_NO_PROTOTYPES 1
+# define VK_USE_PLATFORM_ANDROID_KHR 1
 #elif defined __APPLE__
 # define VK_USE_PLATFORM_MACOS_MVK 1
 # define VK_USE_PLATFORM_METAL_EXT 1
+# define VK_ENABLE_BETA_EXTENSIONS 1
 #endif
 
 #include <vulkan/vulkan.h>
-
-#ifdef __ANDROID__
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * Initialize the Vulkan function pointer variables declared in this header.
  * Returns false if vulkan is not available.
  */
-_Bool load_vulkan_symbols();
+_Bool vtk_load_vulkan_symbols();
+
+#ifndef VTK_NO_VULKAN_LOADING
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifdef __cplusplus
 }
@@ -226,6 +233,10 @@ extern PFN_vkCreateWin32SurfaceKHR vkCreateWin32SurfaceKHR;
 extern PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR vkGetPhysicalDeviceWin32PresentationSupportKHR;
 #endif
 
+#ifdef VK_USE_PLATFORM_MACOS_MVK
+extern PFN_vkCreateMetalSurfaceEXT vkCreateMetalSurfaceEXT;
+#endif
+
 #ifdef USE_DEBUG_EXTENTIONS
 #include <vulkan/vk_sdk_platform.h>
 // VK_EXT_debug_report
@@ -234,6 +245,6 @@ extern PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT;
 extern PFN_vkDebugReportMessageEXT vkDebugReportMessageEXT;
 #endif
 
-#endif // __ANDROID__
+#endif // ifndef VTK_NO_VULKAN_LOADING
 
 #endif // VULKAN_WRAPPER_H

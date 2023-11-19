@@ -11,13 +11,6 @@ struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context)
     struct VtkDeviceNative* device = malloc(sizeof(struct VtkDeviceNative));
     device->vtk_context = vtk_context;
 
-#ifdef __ANDROID__
-    if (!load_vulkan_symbols()) {
-        LOGW("Vulkan is unavailable, install vulkan and re-start");
-        return false;
-    }
-#endif
-
       VkApplicationInfo app_info = {
               .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
               .pNext = NULL,
@@ -25,7 +18,7 @@ struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context)
               .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
               .pEngineName = "vulkan-example",
               .engineVersion = VK_MAKE_VERSION(0, 1, 0),
-              .apiVersion = VK_MAKE_VERSION(1, 3, 0),
+              .apiVersion = VK_MAKE_VERSION(1, 2, 0),
       };
 
     const char *instance_extensions[] = {
@@ -34,13 +27,18 @@ struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context)
             "VK_KHR_android_surface",
 #elif defined __APPLE__
             "VK_MVK_macos_surface",
+	    "VK_EXT_metal_surface",
+#ifndef VTK_NO_VULKAN_LOADING
+	    "VK_KHR_portability_enumeration",
+	    "VK_KHR_get_physical_device_properties2",
+#endif
 #else
             "VK_KHR_wayland_surface",
 #endif
     };
 
     char const *enabledLayerNames[] = {
-#ifdef ENABLE_VULKAN_VALIDATION_LAYERS
+#ifdef VTK_ENABLE_VULKAN_VALIDATION_LAYERS
             "VK_LAYER_KHRONOS_validation"
 #endif
     };
@@ -53,6 +51,10 @@ struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context)
             .ppEnabledLayerNames = enabledLayerNames,
             .enabledExtensionCount = VTK_ARRAY_SIZE(instance_extensions),
             .ppEnabledExtensionNames = instance_extensions,
+#if defined(__APPLE__) && !defined(VTK_NO_VULKAN_LOADING)
+	    // Necessary to load MoltenVK through the vulkan loader:
+	    .flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
+#endif
     };
 
     CALL_VK(vkCreateInstance(&instance_create_info, NULL, &device->vk_instance));
@@ -92,7 +94,10 @@ struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context)
     };
 
     char const *device_extensions[] = {
-            "VK_KHR_swapchain"
+            "VK_KHR_swapchain",
+#ifdef __APPLE__
+	    "VK_KHR_portability_subset",
+#endif
     };
 
     VkDeviceCreateInfo deviceCreateInfo = {
@@ -131,11 +136,6 @@ __attribute__ ((visibility ("default")))
 void vtk_window_init(struct VtkDeviceNative* vtk_device) {
    struct VtkWindowNative* vtk_window = malloc(sizeof(struct VtkWindowNative));
    vtk_window->vtk_device = vtk_device;
-
-    printf("UUUUU #####\nvtk_device: %p\n", vtk_device);
-    printf("vtk_context: %p\n", vtk_device->vtk_context);
-    printf("vtk_application: %p\n", vtk_device->vtk_context->vtk_application);
-    printf("vtk_window: %p\n", vtk_window);
 
    vtk_window_init_platform(vtk_window);
 }

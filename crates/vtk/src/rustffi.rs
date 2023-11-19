@@ -78,7 +78,6 @@ pub extern "C" fn vtk_application_render_frame(
     let mut application = unsafe { Box::from_raw(application as *mut Box<dyn VtkApplication>) };
     let vtk_device : &mut VtkDeviceNative = unsafe { &mut *(vtk_device as *mut VtkDeviceNative) };
     let vtk_window : &mut VtkWindowNative = unsafe { &mut *(vtk_window as *mut VtkWindowNative) };
-    println!("render callback");
     let mut vtk_device = VtkDevice { native_handle: vtk_device };
     let mut vtk_window = VtkWindow { native_handle: vtk_window };
     application.render_frame(&mut vtk_device, &mut vtk_window);

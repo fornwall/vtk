@@ -1,14 +1,35 @@
 #include "vulkan_wrapper.h"
 #include <dlfcn.h>
+#if defined(__APPLE__) && !defined(VTK_NO_VULKAN_LOADING)
+#include <stdlib.h>
+#endif
 
-bool load_vulkan_symbols() {
-    void *libvulkan = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
+bool vtk_load_vulkan_symbols() {
+#ifdef VTK_NO_VULKAN_LOADING
+    return true;
+#else
+
+#ifdef __APPLE__
+    // Setup so that the vulkan layer can load from our bundled macOS/MoltenVK SDK:
+#define xstr(s) str(s)
+#define str(s) #s
+    setenv("VK_ICD_FILENAMES", xstr(VTK_ICD_FILENAMES), 1);
+    setenv("VK_LAYER_PATH", xstr(VTK_LAYER_PATH), 1);
+#undef xstr
+#undef str
+#endif
+
+    void *libvulkan = dlopen(
+#ifdef __APPLE__
+		    "libvulkan.dylib"
+#else
+		    "libvulkan.so"
+#endif
+		    , RTLD_NOW | RTLD_LOCAL);
     if (!libvulkan) {
-        //
         return false;
     }
 
-    // Vulkan supported, set function addresses
     vkCreateInstance = (PFN_vkCreateInstance) dlsym(libvulkan, "vkCreateInstance");
     vkDestroyInstance = (PFN_vkDestroyInstance) dlsym(libvulkan, "vkDestroyInstance");
     vkEnumeratePhysicalDevices = (PFN_vkEnumeratePhysicalDevices) dlsym(libvulkan, "vkEnumeratePhysicalDevices");
@@ -213,15 +234,21 @@ bool load_vulkan_symbols() {
     vkCreateWin32SurfaceKHR = (PFN_vkCreateWin32SurfaceKHR) dlsym(libvulkan, "vkCreateWin32SurfaceKHR");
     vkGetPhysicalDeviceWin32PresentationSupportKHR = (PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR) dlsym(libvulkan, "vkGetPhysicalDeviceWin32PresentationSupportKHR");
 #endif
+
+#ifdef VK_USE_PLATFORM_MACOS_MVK
+    vkCreateMetalSurfaceEXT = (PFN_vkCreateMetalSurfaceEXT) dlsym(libvulkan, "vkCreateMetalSurfaceEXT");
+#endif
+
 #ifdef USE_DEBUG_EXTENTIONS
     vkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT) dlsym(libvulkan, "vkCreateDebugReportCallbackEXT");
     vkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT) dlsym(libvulkan, "vkDestroyDebugReportCallbackEXT");
     vkDebugReportMessageEXT = (PFN_vkDebugReportMessageEXT) dlsym(libvulkan, "vkDebugReportMessageEXT");
 #endif
     return true;
+#endif
 }
 
-// No Vulkan support, do not set function addresses
+#ifndef VTK_NO_VULKAN_LOADING
 PFN_vkCreateInstance vkCreateInstance;
 PFN_vkDestroyInstance vkDestroyInstance;
 PFN_vkEnumeratePhysicalDevices vkEnumeratePhysicalDevices;
@@ -406,7 +433,13 @@ PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR;
 PFN_vkCreateWin32SurfaceKHR vkCreateWin32SurfaceKHR;
 PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR vkGetPhysicalDeviceWin32PresentationSupportKHR;
 #endif
+
+#ifdef VK_USE_PLATFORM_MACOS_MVK
+PFN_vkCreateMetalSurfaceEXT vkCreateMetalSurfaceEXT;
+#endif
+
 PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT;
 PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT;
 PFN_vkDebugReportMessageEXT vkDebugReportMessageEXT;
+#endif // VTK_NO_VULKAN_LOADING
 
