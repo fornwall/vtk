@@ -648,7 +648,7 @@ void vtk_render_frame(struct VtkWindowNative* vtk_window) {
     }
 }
 
-bool MapMemoryTypeToIndex(VkPhysicalDevice* device, uint32_t typeBits, VkFlags requirements_mask, uint32_t *typeIndex) {
+bool vtk_find_memory_idx(VkPhysicalDevice* device, uint32_t typeBits, VkFlags requirements_mask, uint32_t *typeIndex) {
     VkPhysicalDeviceMemoryProperties memoryProperties;
     vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
     for (uint32_t memory_index = 0; memory_index < memoryProperties.memoryTypeCount; memory_index++) {
@@ -659,7 +659,6 @@ bool MapMemoryTypeToIndex(VkPhysicalDevice* device, uint32_t typeBits, VkFlags r
                 return true;
             }
         }
-        typeBits >>= 1;
     }
     return false;
 }
@@ -720,10 +719,12 @@ void create_vertex_buffer() {
             };
 
             // Assign the proper memory type for that buffer
-            MapMemoryTypeToIndex(memReq.memoryTypeBits,
-                                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                 &vk_memory_allocation_info.memoryTypeIndex);
+            VkFlags memory_requirements = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            bool found_memory_idx = MapMemoryTypeToIndex(memReq.memoryTypeBits, memory_requirements, &vk_memory_allocation_info.memoryTypeIndex);
+            if (!found_memory_idx) {
+                LOGE("No memory idx found\n");
+                assert(found_memory_idx);
+            }
 
             // Allocate memory for the buffer
             CALL_VK(vkAllocateMemory(device.vk_device, &vk_memory_allocation_info, NULL, &deviceMemory))
