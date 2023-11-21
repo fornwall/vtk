@@ -38,7 +38,7 @@ struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context)
     };
 
     char const *enabledLayerNames[] = {
-#ifdef VTK_ENABLE_VULKAN_VALIDATION_LAYERS
+#ifdef VTK_VULKAN_VALIDATION
             "VK_LAYER_KHRONOS_validation"
 #endif
     };

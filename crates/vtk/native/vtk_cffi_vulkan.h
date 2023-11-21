@@ -6,6 +6,7 @@ typedef unsigned int uint32_t;
 
 typedef void* VkBuffer;
 typedef void* VkDevice;
+typedef void* VkDeviceMemory;
 typedef void* VkFramebuffer;
 typedef void* VkFramebuffer;
 typedef void* VkImage;

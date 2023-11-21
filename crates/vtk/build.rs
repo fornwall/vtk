@@ -42,6 +42,11 @@ pub(crate) fn download_prebuilt_molten<P: AsRef<Path>>(target_dir: &P) {
 fn main() {
     let mut cc = cc::Build::new();
 
+    let build_c_file = |builder: &mut cc::Build, file_path| {
+        println!("cargo:rerun-if-changed={file_path}");
+        builder.file(file_path);
+    };
+
     let out_dir = std::env::var("OUT_DIR").unwrap();
     // bindgen - see https://rust-lang.github.io/rust-bindgen/tutorial-3.html
     let bindings = bindgen::Builder::default()
@@ -62,7 +67,6 @@ fn main() {
 
     // cbindgen - see https://michael-f-bryan.github.io/rust-ffi-guide/cbindgen.html
     let generated_headers_dir = format!("{}/headers", out_dir);
-    cc.include(&generated_headers_dir);
     let output_file = format!("{}/rustffi.h", generated_headers_dir);
     let mut cbindgen_config = cbindgen::Config::default();
     cbindgen_config
@@ -81,69 +85,62 @@ fn main() {
         if target_os != "macos" && target_os != "ios" {
             panic!("CARGO_CFG_TARGET_OS must be either 'macos' or 'ios' target");
         }
-        //let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+        // let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
 
         let target_dir =
             Path::new(&out_dir).join(format!("vulkan-sdk-{}", MACOS_SDK_VERSION));
         download_prebuilt_molten(&target_dir);
-        let mut pb: PathBuf = target_dir.into();
-        pb.push("macOS/");
-        let mut include_dir = pb.clone();
-        include_dir.push("include");
-        let mut share_dir = pb.clone();
-        share_dir.push("share");
-        pb.push("lib/");
 
-        println!("cargo:rustc-link-search=native={}", pb.display());
+        let vulkan_sdk_include_dir = format!("{}/macOS/include", target_dir.display());
+        let vulkan_sdk_lib_dir = format!("{}/macOS/lib", target_dir.display());
 
-        // Setup so that vulkan validation layers can be loaded easily.
         #[cfg(feature = "validation")]
         {
+            // Setup so that vulkan validation layers can be loaded easily.
             // Link to the libvulkan.dylib loader:
             println!("cargo:rustc-link-lib=dylib=vulkan");
             // See https://vulkan.lunarg.com/doc/sdk/1.3.268.0/windows/layer_configuration.html
-            let vtk_icd_filenames = format!("{}/vulkan/icd.d/MoltenVK_icd.json", share_dir.display());
+            let vulkan_sdk_share_dir = format!("{}/macOS/share", target_dir.display());
+            let vtk_icd_filenames = format!("{}/vulkan/icd.d/MoltenVK_icd.json", vulkan_sdk_share_dir);
+            let vtk_layer_path = format!("{}/vulkan/explicit_layer.d", vulkan_sdk_share_dir);
             cc.define("VTK_ICD_FILENAMES", Some(&vtk_icd_filenames[..]));
-            let vtk_layer_path = format!("{}/vulkan/explicit_layer.d", share_dir.display());
             cc.define("VTK_LAYER_PATH", Some(&vtk_layer_path[..]));
         }
         #[cfg(not(feature = "validation"))]
         {
-            // Link to MoltenVK statically.
+            // Link to MoltenVK statically if not using validation layers.
             println!("cargo:rustc-link-lib=static=MoltenVK");
             cc.define("VTK_NO_VULKAN_LOADING", "1");
         }
 
-        cc.include(&include_dir);
+        cc.include(&vulkan_sdk_include_dir);
 
-        println!("cargo:rerun-if-changed=native/platforms/mac/vtk_mac.m");
-        cc.file("native/platforms/mac/vtk_mac.m");
-        println!("cargo:rerun-if-changed=native/platforms/mac/VtkViewController.m");
-        cc.file("native/platforms/mac/VtkViewController.m");
+        println!("cargo:rustc-link-lib=dylib=c++");
+        println!("cargo:rustc-link-lib=framework=AppKit");
+        println!("cargo:rustc-link-lib=framework=IOKit");
+        println!("cargo:rustc-link-lib=framework=IOSurface");
+        println!("cargo:rustc-link-lib=framework=Metal");
+        println!("cargo:rustc-link-lib=framework=QuartzCore");
+        println!("cargo:rustc-link-search=native={}", vulkan_sdk_lib_dir);
 
         cc.flag("-xobjective-c");
+
+        build_c_file(&mut cc, "native/vtk_mac.c");
+        build_c_file(&mut cc, "native/platforms/mac/VtkViewController.m");
     }
 
-    println!("cargo:rustc-link-lib=framework=Metal");
-    println!("cargo:rustc-link-lib=framework=AppKit");
-    println!("cargo:rustc-link-lib=framework=QuartzCore");
-    println!("cargo:rustc-link-lib=framework=IOKit");
-    println!("cargo:rustc-link-lib=framework=IOSurface");
-    println!("cargo:rustc-link-lib=dylib=c++");
-
     #[cfg(feature = "validation")]
-    cc.define("VTK_ENABLE_VULKAN_VALIDATION_LAYERS", "1");
-
-    println!("cargo:rerun-if-changed=native/vulkan_wrapper.h");
-    println!("cargo:rerun-if-changed=native/vulkan_wrapper.c");
-    cc.file("native/vulkan_wrapper.c");
+    cc.define("VTK_VULKAN_VALIDATION", "1");
 
     cc.include("native/");
+    cc.include(&generated_headers_dir);
+
+    println!("cargo:rerun-if-changed=native/vulkan_wrapper.h");
     println!("cargo:rerun-if-changed=native/vtk_cffi.h");
-    println!("cargo:rerun-if-changed=native/vtk_cffi.c");
-    cc.file("native/vtk_cffi.c");
-    println!("cargo:rerun-if-changed=native/vtk_vulkan_setup.c");
-    cc.file("native/vtk_vulkan_setup.c");
+
+    build_c_file(&mut cc, "native/vulkan_wrapper.c");
+    build_c_file(&mut cc, "native/vtk_cffi.c");
+    build_c_file(&mut cc, "native/vtk_vulkan_setup.c");
 
     // TODO: Make sanitize a feature or depend on build profile?
     //       Probably feature, to avoid flexibility

@@ -30,12 +30,6 @@ void vtk_window_init(
 #endif
     };
 
-    char const *enabledLayerNames[] = {
-#ifdef ENABLE_VULKAN_VALIDATION_LAYERS_NO
-            "VK_LAYER_KHRONOS_validation"
-#endif
-    };
-
 #ifdef __ANDROID__
     VkAndroidSurfaceCreateInfoKHR surface_create_info = {
             .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,

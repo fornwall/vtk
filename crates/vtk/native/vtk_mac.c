@@ -9,6 +9,9 @@
 #import "vtk_mac.h"
 
 struct VtkContextNative* vtk_context_init(void* vtk_application) {
+#ifdef VTK_VULKAN_VALIDATION
+    setenv("VK_LOADER_DEBUG", "all", 1);
+#endif
     id ns_application = [NSApplication sharedApplication];
     [ns_application setActivationPolicy:NSApplicationActivationPolicyRegular];
 
