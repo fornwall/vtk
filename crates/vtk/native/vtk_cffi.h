@@ -13,6 +13,11 @@ typedef void VtkViewController;
 #endif // __APPLE__
 #endif // VTK_RUST_BINDGEN
 
+#ifdef __cplusplus
+#define _Bool bool
+extern "C" {
+#endif
+
 struct VtkDeviceNative;
 struct VtkWindowNative;
 
@@ -86,5 +91,9 @@ void vtk_context_run(struct VtkContextNative* context);
 struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context);
 
 void vtk_window_init(struct VtkDeviceNative* vtk_device);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

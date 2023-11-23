@@ -77,6 +77,8 @@ pub(crate) fn download_vulkan_sdk<P: AsRef<Path>>(target_dir: &P) {
 }
 
 fn main() {
+    let build_target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+
     let mut cc = cc::Build::new();
 
     let build_c_file = |builder: &mut cc::Build, file_path| {
@@ -118,12 +120,14 @@ fn main() {
         .unwrap()
         .write_to_file(&output_file);
 
-    #[cfg(target_os = "macos")]
+    if build_target_os == "android"
     {
-        let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
-        if target_os != "macos" && target_os != "ios" {
-            panic!("CARGO_CFG_TARGET_OS must be either 'macos' or 'ios' target");
-        }
+        // Several Android NDK r26 headers are C++ only: https://github.com/android/ndk/issues/1920
+        cc.cpp(true);
+        cc.cpp_link_stdlib(None);
+
+        build_c_file(&mut cc, "native/vtk_android.c");
+    } else if build_target_os == "macos" || build_target_os == "ios" {
         // let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
 
         let target_dir = Path::new(&out_dir).join(format!("vulkan-sdk-{}", MACOS_SDK_VERSION));
@@ -166,10 +170,7 @@ fn main() {
 
         build_c_file(&mut cc, "native/vtk_mac.c");
         build_c_file(&mut cc, "native/platforms/mac/VtkViewController.m");
-    }
-
-    #[cfg(target_os = "linux")]
-    {
+    } else if build_target_os == "linux" {
         let target_dir =
             Path::new(&out_dir).join(format!("vulkan-sdk-{}", VULKAN_SDK_VERSION_LINUX));
         download_vulkan_sdk(&target_dir);

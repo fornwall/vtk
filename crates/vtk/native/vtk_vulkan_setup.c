@@ -113,7 +113,7 @@ void vtk_create_swap_chain(struct VtkWindowNative* vtk_window) {
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
                 .pNext = NULL,
                 .renderPass = vtk_window->vk_surface_render_pass,
-                .attachmentCount = (depth_view == VK_NULL_HANDLE ? 1 : 2),
+                .attachmentCount = (uint32_t) ((depth_view == VK_NULL_HANDLE ? 1 : 2)),
                 .pAttachments = attachments,
                 .width = (uint32_t) vtk_window->vk_extent_2d.width,
                 .height = (uint32_t) vtk_window->vk_extent_2d.height,
@@ -201,9 +201,9 @@ void vtk_create_surface_render_pass(struct VtkWindowNative* vtk_window) {
 
 void vtk_create_graphics_pipeline(struct VtkWindowNative* vtk_window, uint32_t push_constant_size) {
 	VkPushConstantRange vk_push_constant_range = {
+	    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
 	    .offset = 0,
 	    .size = push_constant_size,
-	    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
 	};
 
     VkPipelineLayoutCreateInfo vk_pipeline_layout_create_info = {
@@ -211,7 +211,7 @@ void vtk_create_graphics_pipeline(struct VtkWindowNative* vtk_window, uint32_t p
             .pNext = NULL,
             .setLayoutCount = 0,
             .pSetLayouts = NULL,
-            .pushConstantRangeCount = (push_constant_size == 0) ? 0 : 1,
+            .pushConstantRangeCount = (uint32_t) ((push_constant_size == 0) ? 0 : 1),
             .pPushConstantRanges = &vk_push_constant_range,
     };
     CALL_VK(vkCreatePipelineLayout(vtk_window->vtk_device->vk_device, &vk_pipeline_layout_create_info, NULL, &vtk_window->vk_pipeline_layout));
@@ -327,14 +327,14 @@ void vtk_create_graphics_pipeline(struct VtkWindowNative* vtk_window, uint32_t p
 
     VkVertexInputAttributeDescription vk_vertex_input_attribute_descriptions[] = {
             {
-                    .binding = 0,
                     .location = 0,
+                    .binding = 0,
                     .format = VK_FORMAT_R32G32B32_SFLOAT,
                     .offset = 0,
             },
             {
-                    .binding = 1,
                     .location = 1,
+                    .binding = 1,
                     .format = VK_FORMAT_R32G32B32_SFLOAT,
                     .offset = 0,
             },
@@ -648,7 +648,7 @@ void vtk_render_frame(struct VtkWindowNative* vtk_window) {
     }
 }
 
-bool vtk_find_memory_idx(VkPhysicalDevice* device, uint32_t typeBits, VkFlags requirements_mask, uint32_t *typeIndex) {
+bool vtk_find_memory_idx(VkPhysicalDevice device, uint32_t typeBits, VkFlags requirements_mask, uint32_t *typeIndex) {
     VkPhysicalDeviceMemoryProperties memoryProperties;
     vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
     for (uint32_t memory_index = 0; memory_index < memoryProperties.memoryTypeCount; memory_index++) {

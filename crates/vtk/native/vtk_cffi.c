@@ -8,7 +8,7 @@
 
 struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context)
 {
-    struct VtkDeviceNative* device = malloc(sizeof(struct VtkDeviceNative));
+    struct VtkDeviceNative* device = (struct VtkDeviceNative*) malloc(sizeof(struct VtkDeviceNative));
     device->vtk_context = vtk_context;
 
       VkApplicationInfo app_info = {
@@ -134,7 +134,7 @@ struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context)
 
 __attribute__ ((visibility ("default")))
 void vtk_window_init(struct VtkDeviceNative* vtk_device) {
-   struct VtkWindowNative* vtk_window = malloc(sizeof(struct VtkWindowNative));
+   struct VtkWindowNative* vtk_window = (struct VtkWindowNative*) malloc(sizeof(struct VtkWindowNative));
    vtk_window->vtk_device = vtk_device;
 
    vtk_window_init_platform(vtk_window);

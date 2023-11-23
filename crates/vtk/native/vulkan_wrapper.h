@@ -22,7 +22,12 @@
  * Initialize the Vulkan function pointer variables declared in this header.
  * Returns false if vulkan is not available.
  */
-_Bool vtk_load_vulkan_symbols();
+#ifdef __cplusplus
+bool
+#else
+_Bool 
+#endif
+vtk_load_vulkan_symbols();
 
 #ifndef VTK_NO_VULKAN_LOADING
 #ifdef __cplusplus
