@@ -14,18 +14,15 @@ pub struct VtkContext {
 impl VtkContext {
     pub fn new(mut application: Box<dyn VtkApplication>) -> Self {
         let application_pointer = Box::into_raw(Box::new(application));
-        let native_handle = unsafe { vtk_context_init(application_pointer as *mut ::std::os::raw::c_void) };
+        let native_handle =
+            unsafe { vtk_context_init(application_pointer as *mut ::std::os::raw::c_void) };
         //assert!(okklklk);
-        Self {
-            native_handle,
-        }
+        Self { native_handle }
     }
 
     pub fn create_device(&mut self) -> VtkDevice {
         let native_handle = unsafe { vtk_device_init(self.native_handle) };
-        VtkDevice {
-            native_handle
-        }
+        VtkDevice { native_handle }
     }
 
     /// Request a window to be opened.
@@ -38,7 +35,6 @@ impl VtkContext {
     pub fn run(&mut self) {
         unsafe { vtk_context_run(self.native_handle) };
     }
-
 }
 
 pub struct VtkDevice {
@@ -46,8 +42,7 @@ pub struct VtkDevice {
 }
 
 pub struct VtkWindow {
-    pub(crate) native_handle: *mut VtkWindowNative
+    pub(crate) native_handle: *mut VtkWindowNative,
 }
 
 include!(concat!(env!("OUT_DIR"), "/cffi_bindings.rs"));
-

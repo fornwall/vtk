@@ -1,12 +1,14 @@
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 #[cfg(target_os = "macos")]
 pub const MACOS_SDK_VERSION: &str = "1.3.268.1";
 
+#[cfg(target_os = "linux")]
+pub const VULKAN_SDK_VERSION_LINUX: &str = "1.3.268.0";
+
 #[cfg(target_os = "macos")]
 pub(crate) fn download_prebuilt_molten<P: AsRef<Path>>(target_dir: &P) {
-    use std::process::Command;
-
     std::fs::create_dir_all(target_dir).expect("Couldn't create directory");
 
     let sdk_filename = format!("vulkansdk-macos-minimal-{MACOS_SDK_VERSION}.tar.xz");
@@ -39,6 +41,41 @@ pub(crate) fn download_prebuilt_molten<P: AsRef<Path>>(target_dir: &P) {
     assert!(untar_status.success(), "failed to run unzip");
 }
 
+#[cfg(target_os = "linux")]
+pub(crate) fn download_vulkan_sdk<P: AsRef<Path>>(target_dir: &P) {
+    std::fs::create_dir_all(target_dir).expect("Couldn't create directory");
+
+    let sdk_filename = format!("vulkansdk-linux-minimal-x86_64-{VULKAN_SDK_VERSION_LINUX}.tar.xz");
+
+    let download_url = format!(
+        "https://github.com/fornwall/libvulkan-minimal/releases/download/0.0.12/{sdk_filename}"
+    );
+    let download_path = target_dir.as_ref().join(&sdk_filename);
+
+    let curl_status = Command::new("curl")
+        .args(["--fail", "--location", "--silent", &download_url, "-o"])
+        .arg(&download_path)
+        .status()
+        .expect("Couldn't launch curl");
+
+    assert!(
+        curl_status.success(),
+        "failed to download vulkan sdk: {download_url}"
+    );
+
+    let untar_status = Command::new("tar")
+        .arg("xf")
+        .arg(&download_path)
+        .arg("--strip-components")
+        .arg("1")
+        .arg("-C")
+        .arg(target_dir.as_ref())
+        .status()
+        .expect("Couldn't launch unzip");
+
+    assert!(untar_status.success(), "failed to run unzip");
+}
+
 fn main() {
     let mut cc = cc::Build::new();
 
@@ -48,6 +85,9 @@ fn main() {
     };
 
     let out_dir = std::env::var("OUT_DIR").unwrap();
+
+    let generated_headers_dir = format!("{}/headers", out_dir);
+
     // bindgen - see https://rust-lang.github.io/rust-bindgen/tutorial-3.html
     let bindings = bindgen::Builder::default()
         .clang_arg("-DVTK_RUST_BINDGEN=1")
@@ -66,7 +106,6 @@ fn main() {
         .expect("Couldn't write bindings!");
 
     // cbindgen - see https://michael-f-bryan.github.io/rust-ffi-guide/cbindgen.html
-    let generated_headers_dir = format!("{}/headers", out_dir);
     let output_file = format!("{}/rustffi.h", generated_headers_dir);
     let mut cbindgen_config = cbindgen::Config::default();
     cbindgen_config
@@ -87,8 +126,7 @@ fn main() {
         }
         // let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
 
-        let target_dir =
-            Path::new(&out_dir).join(format!("vulkan-sdk-{}", MACOS_SDK_VERSION));
+        let target_dir = Path::new(&out_dir).join(format!("vulkan-sdk-{}", MACOS_SDK_VERSION));
         download_prebuilt_molten(&target_dir);
 
         let vulkan_sdk_include_dir = format!("{}/macOS/include", target_dir.display());
@@ -101,7 +139,8 @@ fn main() {
             println!("cargo:rustc-link-lib=dylib=vulkan");
             // See https://vulkan.lunarg.com/doc/sdk/1.3.268.0/windows/layer_configuration.html
             let vulkan_sdk_share_dir = format!("{}/macOS/share", target_dir.display());
-            let vtk_icd_filenames = format!("{}/vulkan/icd.d/MoltenVK_icd.json", vulkan_sdk_share_dir);
+            let vtk_icd_filenames =
+                format!("{}/vulkan/icd.d/MoltenVK_icd.json", vulkan_sdk_share_dir);
             let vtk_layer_path = format!("{}/vulkan/explicit_layer.d", vulkan_sdk_share_dir);
             cc.define("VTK_ICD_FILENAMES", Some(&vtk_icd_filenames[..]));
             cc.define("VTK_LAYER_PATH", Some(&vtk_layer_path[..]));
@@ -129,6 +168,63 @@ fn main() {
         build_c_file(&mut cc, "native/platforms/mac/VtkViewController.m");
     }
 
+    #[cfg(target_os = "linux")]
+    {
+        let target_dir =
+            Path::new(&out_dir).join(format!("vulkan-sdk-{}", VULKAN_SDK_VERSION_LINUX));
+        download_vulkan_sdk(&target_dir);
+        let mut pb = PathBuf::from(
+            std::env::var("CARGO_MANIFEST_DIR").expect("unable to find env:CARGO_MANIFEST_DIR"),
+        );
+        pb.push(target_dir);
+        pb.push("x86_64/");
+        let mut include_dir = pb.clone();
+        include_dir.push("include");
+        let mut share_dir = pb.clone();
+        share_dir.push("share");
+        pb.push("lib/");
+
+        //println!("cargo:rustc-link-search=native={}", pb.display());
+
+        // Link to the libvulkan.so loader:
+        println!("cargo:rustc-link-lib=dylib=vulkan");
+
+        #[cfg(feature = "validation")]
+        {
+            // Setup so that vulkan validation layers can be loaded easily.
+            // See https://vulkan.lunarg.com/doc/sdk/1.3.268.0/windows/layer_configuration.html
+            let vtk_icd_filenames =
+                format!("{}/vulkan/icd.d/MoltenVK_icd.json", share_dir.display());
+            cc.define("VTK_ICD_FILENAMES", Some(&vtk_icd_filenames[..]));
+            let vtk_layer_path = format!("{}/vulkan/explicit_layer.d", share_dir.display());
+            cc.define("VTK_LAYER_PATH", Some(&vtk_layer_path[..]));
+        }
+
+        cc.include(&include_dir);
+
+        build_c_file(&mut cc, "native/vtk_wayland.c");
+
+        // See https://wayland-book.com/xdg-shell-basics/example-code.html
+        let generated_wayland_c = format!("{out_dir}/xdg-shell-client-protocol.c");
+        assert!(Command::new("sh")
+            .args([
+                "-c",
+                &format!("wayland-scanner private-code < /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml > {generated_wayland_c}")
+            ])
+            .status()
+            .unwrap()
+            .success());
+        assert!(Command::new("sh")
+            .args([
+                "-c",
+                &format!("wayland-scanner client-header < /usr/share/wayland-protocols/stable/xdg-shell/xdg-shell.xml > {generated_headers_dir}/xdg-shell-client-protocol.h")
+            ])
+            .status()
+            .unwrap()
+            .success());
+        cc.file(generated_wayland_c);
+    }
+
     #[cfg(feature = "validation")]
     cc.define("VTK_VULKAN_VALIDATION", "1");
 
@@ -151,5 +247,5 @@ fn main() {
     //cc.flag("-fsanitize=address");
     //cc.flag("-fsanitize=undefined");
 
-    cc.compile("foo");
+    cc.compile("vtk");
 }

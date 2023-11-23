@@ -1,12 +1,10 @@
 #include <Cocoa/Cocoa.h>
 
-#include "vulkan_wrapper.h"
-
 #include "vtk_cffi.h"
-#include "vtk_log.h"
 #include "vtk_internal.h"
-
-#import "vtk_mac.h"
+#include "vtk_log.h"
+#include "vtk_mac.h"
+#include "vulkan_wrapper.h"
 
 struct VtkContextNative* vtk_context_init(void* vtk_application) {
 #ifdef VTK_VULKAN_VALIDATION

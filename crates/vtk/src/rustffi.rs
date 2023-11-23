@@ -1,8 +1,8 @@
+use crate::{cffi, VtkDevice, VtkDeviceNative, VtkWindow, VtkWindowNative};
 /// The `rustffi` - API that rust expose to C.
 use bitflags::bitflags;
-use std::ffi::c_char;
 use cffi::VtkApplication;
-use crate::{cffi, VtkDevice, VtkWindow, VtkDeviceNative, VtkWindowNative};
+use std::ffi::c_char;
 
 bitflags! {
     /// Represents a set of flags.
@@ -59,11 +59,15 @@ pub extern "C" fn vtk_application_setup_window(
     vtk_window: *mut ::std::os::raw::c_void,
 ) {
     let mut application = unsafe { Box::from_raw(application as *mut Box<dyn VtkApplication>) };
-    let vtk_device : &mut VtkDeviceNative = unsafe { &mut *(vtk_device as *mut VtkDeviceNative) };
-    let vtk_window : &mut VtkWindowNative = unsafe { &mut *(vtk_window as *mut VtkWindowNative) };
+    let vtk_device: &mut VtkDeviceNative = unsafe { &mut *(vtk_device as *mut VtkDeviceNative) };
+    let vtk_window: &mut VtkWindowNative = unsafe { &mut *(vtk_window as *mut VtkWindowNative) };
     println!("setup window callback");
-    let mut vtk_device = VtkDevice { native_handle: vtk_device };
-    let mut vtk_window = VtkWindow { native_handle: vtk_window };
+    let mut vtk_device = VtkDevice {
+        native_handle: vtk_device,
+    };
+    let mut vtk_window = VtkWindow {
+        native_handle: vtk_window,
+    };
     application.setup_window(&mut vtk_device, &mut vtk_window);
     Box::leak(application);
 }
@@ -76,10 +80,14 @@ pub extern "C" fn vtk_application_render_frame(
 ) {
     //let application : &mut Box<dyn VtkApplication> = unsafe { &mut *(application as *mut Box<dyn VtkApplication>) };
     let mut application = unsafe { Box::from_raw(application as *mut Box<dyn VtkApplication>) };
-    let vtk_device : &mut VtkDeviceNative = unsafe { &mut *(vtk_device as *mut VtkDeviceNative) };
-    let vtk_window : &mut VtkWindowNative = unsafe { &mut *(vtk_window as *mut VtkWindowNative) };
-    let mut vtk_device = VtkDevice { native_handle: vtk_device };
-    let mut vtk_window = VtkWindow { native_handle: vtk_window };
+    let vtk_device: &mut VtkDeviceNative = unsafe { &mut *(vtk_device as *mut VtkDeviceNative) };
+    let vtk_window: &mut VtkWindowNative = unsafe { &mut *(vtk_window as *mut VtkWindowNative) };
+    let mut vtk_device = VtkDevice {
+        native_handle: vtk_device,
+    };
+    let mut vtk_window = VtkWindow {
+        native_handle: vtk_window,
+    };
     application.render_frame(&mut vtk_device, &mut vtk_window);
     Box::leak(application);
 }

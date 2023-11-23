@@ -4,22 +4,19 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_wayland.h>
 #include <wayland-client.h>
-#include <xdg-shell.h>
+#include "xdg-shell-client-protocol.h"
 
-#define CHECK_WL_RESULT(_expr) \
-if (!(_expr)) \
-{ \
-    printf("Error executing %s.", #_expr); \
-}
+#include "vtk_cffi.h"
+#include "vtk_internal.h"
+#include "vtk_log.h"
+#include "vulkan_wrapper.h"
+
+#define VTK_CHECK_WL_RESULT(_expr) \
+if (!(_expr)) { fprintf(stderr, "[vtk] Error executing %s.", #_expr); }
 
 static struct SwapchainElement* elements = NULL;
-static struct wl_display* display = NULL;
-static struct wl_registry* registry = NULL;
 static struct wl_compositor* compositor = NULL;
-static struct wl_surface* surface = NULL;
 static struct xdg_wm_base* shell = NULL;
-static struct xdg_surface* shellSurface = NULL;
-static struct xdg_toplevel* toplevel = NULL;
 static int quit = 0;
 static int readyToResize = 0;
 static int resize = 0;
@@ -33,7 +30,7 @@ static uint32_t imageCount = 0;
 
 static void handleRegistry(void* data, struct wl_registry* registry, uint32_t name, const char* interface, uint32_t version);
 
-static const struct wl_registry_listener registryListener = {
+static const struct wl_registry_listener vtk_wl_registry_listener = {
     .global = handleRegistry
 };
 
@@ -82,39 +79,47 @@ static const struct xdg_toplevel_listener toplevelListener = {
     .close = handleToplevelClose
 };
 
-static void handleRegistry( void* data, struct wl_registry* registry, uint32_t name, const char* interface, uint32_t version) {
+static void handleRegistry(void* data, struct wl_registry* registry, uint32_t name, const char* interface, uint32_t version) {
     if (strcmp(interface, wl_compositor_interface.name) == 0) {
-        CHECK_WL_RESULT(compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 1));
+        VTK_CHECK_WL_RESULT(compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 1));
     }
     else if (strcmp(interface, xdg_wm_base_interface.name) == 0)
     {
-        CHECK_WL_RESULT(shell = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1));
+        VTK_CHECK_WL_RESULT(shell = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1));
         xdg_wm_base_add_listener(shell, &shellListener, NULL);
     }
 }
 
-int main(int argc, char** argv)
+struct VtkContextNative* vtk_context_init(void* vtk_application) {
 {
-    CHECK_WL_RESULT(display = wl_display_connect(NULL));
-    CHECK_WL_RESULT(registry = wl_display_get_registry(display));
+  struct wl_display* display;
+  VTK_CHECK_WL_RESULT(display = wl_display_connect(NULL));
 
-    wl_registry_add_listener(registry, &registryListener, NULL);
-    wl_display_roundtrip(display);
+  static struct wl_registry* registry;
+  VTK_CHECK_WL_RESULT(registry = wl_display_get_registry(display));
 
-    CHECK_WL_RESULT(surface = wl_compositor_create_surface(compositor));
-    CHECK_WL_RESULT(shellSurface = xdg_wm_base_get_xdg_surface(shell, surface));
+  wl_registry_add_listener(registry, &vtk_wl_registry_listener, NULL);
+  wl_display_roundtrip(display);
 
-    xdg_surface_add_listener(shellSurface, &shellSurfaceListener, NULL);
+  struct wl_surface* surface;
+  VTK_CHECK_WL_RESULT(surface = wl_compositor_create_surface(compositor));
 
-    CHECK_WL_RESULT(toplevel = xdg_surface_get_toplevel(shellSurface));
+  struct xdg_surface* shellSurface;
+  VTK_CHECK_WL_RESULT(shellSurface = xdg_wm_base_get_xdg_surface(shell, surface));
 
-    xdg_toplevel_add_listener(toplevel, &toplevelListener, NULL);
-    xdg_toplevel_set_title(toplevel, appName);
-    xdg_toplevel_set_app_id(toplevel, appName);
+  xdg_surface_add_listener(shellSurface, &shellSurfaceListener, NULL);
 
-    wl_surface_commit(surface);
-    wl_display_roundtrip(display);
-    wl_surface_commit(surface);
+  static struct xdg_toplevel* toplevel;
+  VTK_CHECK_WL_RESULT(toplevel = xdg_surface_get_toplevel(shellSurface));
+
+  const char* appName = "vtk TODO";
+  xdg_toplevel_add_listener(toplevel, &toplevelListener, NULL);
+  xdg_toplevel_set_title(toplevel, appName);
+  xdg_toplevel_set_app_id(toplevel, appName);
+
+  wl_surface_commit(surface);
+  wl_display_roundtrip(display);
+  wl_surface_commit(surface);
 
     // TODO: Vulkan init
 
