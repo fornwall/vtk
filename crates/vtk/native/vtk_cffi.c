@@ -22,24 +22,23 @@ struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context)
       };
 
     const char *instance_extensions[] = {
-            "VK_KHR_surface",
+        "VK_KHR_surface",
 #ifdef __ANDROID__
-            "VK_KHR_android_surface",
+        "VK_KHR_android_surface",
 #elif defined __APPLE__
-            "VK_MVK_macos_surface",
 	    "VK_EXT_metal_surface",
 #ifndef VTK_NO_VULKAN_LOADING
 	    "VK_KHR_portability_enumeration",
 	    "VK_KHR_get_physical_device_properties2",
 #endif
 #else
-            "VK_KHR_wayland_surface",
+        "VK_KHR_wayland_surface",
 #endif
     };
 
     char const *enabledLayerNames[] = {
 #ifdef VTK_VULKAN_VALIDATION
-            "VK_LAYER_KHRONOS_validation"
+         "VK_LAYER_KHRONOS_validation"
 #endif
     };
 

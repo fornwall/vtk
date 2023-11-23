@@ -61,7 +61,6 @@ pub extern "C" fn vtk_application_setup_window(
     let mut application = unsafe { Box::from_raw(application as *mut Box<dyn VtkApplication>) };
     let vtk_device: &mut VtkDeviceNative = unsafe { &mut *(vtk_device as *mut VtkDeviceNative) };
     let vtk_window: &mut VtkWindowNative = unsafe { &mut *(vtk_window as *mut VtkWindowNative) };
-    println!("setup window callback");
     let mut vtk_device = VtkDevice {
         native_handle: vtk_device,
     };

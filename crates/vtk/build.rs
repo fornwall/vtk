@@ -1,10 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-#[cfg(target_os = "macos")]
 pub const MACOS_SDK_VERSION: &str = "1.3.268.1";
 
-#[cfg(target_os = "linux")]
 pub const VULKAN_SDK_VERSION_LINUX: &str = "1.3.268.0";
 
 #[cfg(target_os = "macos")]
@@ -41,8 +39,7 @@ pub(crate) fn download_prebuilt_molten<P: AsRef<Path>>(target_dir: &P) {
     assert!(untar_status.success(), "failed to run unzip");
 }
 
-#[cfg(target_os = "linux")]
-pub(crate) fn download_vulkan_sdk<P: AsRef<Path>>(target_dir: &P) {
+pub(crate) fn download_vulkan_linux_sdk<P: AsRef<Path>>(target_dir: &P) {
     std::fs::create_dir_all(target_dir).expect("Couldn't create directory");
 
     let sdk_filename = format!("vulkansdk-linux-minimal-x86_64-{VULKAN_SDK_VERSION_LINUX}.tar.xz");
@@ -173,7 +170,7 @@ fn main() {
     } else if build_target_os == "linux" {
         let target_dir =
             Path::new(&out_dir).join(format!("vulkan-sdk-{}", VULKAN_SDK_VERSION_LINUX));
-        download_vulkan_sdk(&target_dir);
+        download_vulkan_linux_sdk(&target_dir);
         let mut pb = PathBuf::from(
             std::env::var("CARGO_MANIFEST_DIR").expect("unable to find env:CARGO_MANIFEST_DIR"),
         );
