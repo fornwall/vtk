@@ -7,8 +7,8 @@
 #include "vtk_cffi.h"
 #include "vtk_mac.h"
 #include "vtk_log.h"
-#include "rustffi.h"
 #include "vtk_internal.h"
+#include "rustffi.h"
 
 // #include <MoltenVK/mvk_vulkan.h>
 
@@ -17,75 +17,19 @@
 
 @implementation VtkViewController
 
-/** Since this is a single-view app, initialize Vulkan as view is appearing. */
--(void)viewWillAppear {
-    [super viewWillAppear];
-    self.view.wantsLayer = YES; // Back the view with a layer created by the makeBackingLayer method.
-}
-
--(void) viewDidAppear {
-    _stop = NO;
-
-    const CAMetalLayer* metal_layer = (const CAMetalLayer*) self.view.layer;
-
-    VkMetalSurfaceCreateInfoEXT surface_create_info = {
-        .sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT,
-        .pNext = NULL,
-        .flags = 0,
-        .pLayer = metal_layer,
-    };
-
-    struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
-    CALL_VK(vkCreateMetalSurfaceEXT(vtk_device->vk_instance, &surface_create_info, NULL, &vtk_window->vk_surface));
-    vtk_setup_window_rendering(vtk_window);
-
-    vtk_application_setup_window(vtk_device->vtk_context->vtk_application, vtk_device, vtk_window);
-
-    CVDisplayLinkCreateWithActiveCGDisplays(&_displayLink);
-    CVDisplayLinkSetOutputCallback(_displayLink, &DisplayLinkCallback, self);
-    CVDisplayLinkStart(_displayLink);
-}
-
 -(void)loadView
 {
     self.view = [[VtkView alloc] init];
 }
 
 -(void) viewDidDisappear {
-    _stop = YES;
-
-    CVDisplayLinkRelease(_displayLink);
+    //CVDisplayLinkRelease(_displayLink);
     // TODO: Vtk_cleanup(&Vtk);
-
     [super viewDidDisappear];
 }
 
 #pragma mark Display loop callback function
 
-// Rendering loop callback function for use with a CVDisplayLink.
-// https://developer.apple.com/documentation/corevideo/cvdisplaylinkoutputcallback
-static CVReturn DisplayLinkCallback(
-        // A display link that requests a frame.
-        CVDisplayLinkRef display_link __attribute__((unused)),
-        // A pointer to the current time.
-        const CVTimeStamp* _in_now __attribute__((unused)),
-        // A pointer to the display time for a frame.
-        const CVTimeStamp* _in_output_time __attribute__((unused)),
-        // Currently unused. Pass 0.
-        CVOptionFlags _flags_in __attribute__((unused)),
-        // Currently unused. Pass 0 __attribute__((unused)).
-        CVOptionFlags* _flags_out __attribute__((unused)),
-        // A pointer to app-defined data.
-        void* display_link_context) {
-    VtkViewController* view_controller = (VtkViewController*) display_link_context;
-    struct VtkWindowNative* vtk_window = view_controller->vtk_window;
-    struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
-    if (view_controller->_stop == NO) {
-        vtk_application_render_frame(vtk_device->vtk_context->vtk_application, vtk_device, vtk_window);
-        vtk_render_frame(vtk_window);
-    }
-    return kCVReturnSuccess;
-}
 
 @end
 
