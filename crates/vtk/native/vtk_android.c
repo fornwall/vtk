@@ -7,7 +7,7 @@
 void android_main(ANativeActivity *activity, void *savedState, size_t savedStateSize) {
 }
 
-struct VtkContextNative* vtk_context_init(void* vtk_application) {
+struct VtkContextNative* vtk_context_init() {
 #ifdef VTK_VULKAN_VALIDATION
     setenv("VK_LOADER_DEBUG", "all", 1);
 #endif
@@ -18,6 +18,5 @@ struct VtkContextNative* vtk_context_init(void* vtk_application) {
 
     struct VtkContextNative* result = malloc(sizeof(struct VtkContextNative));
     result->ns_application = ns_application;
-    result->vtk_application = vtk_application;
     return result;
 }

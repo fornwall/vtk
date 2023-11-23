@@ -7,6 +7,4 @@ void vtk_setup_window_rendering(struct VtkWindowNative* vtk_window);
 
 void vtk_tear_down_window_rendering(struct VtkWindowNative* vtk_window);
 
-void vtk_render_frame(struct VtkWindowNative* vtk_window);
-
 #endif

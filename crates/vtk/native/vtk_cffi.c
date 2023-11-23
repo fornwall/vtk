@@ -132,11 +132,11 @@ struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context)
 }
 
 __attribute__ ((visibility ("default")))
-void vtk_window_init(struct VtkDeviceNative* vtk_device) {
+struct VtkWindowNative* vtk_window_init(struct VtkDeviceNative* vtk_device) {
    struct VtkWindowNative* vtk_window = (struct VtkWindowNative*) malloc(sizeof(struct VtkWindowNative));
    vtk_window->vtk_device = vtk_device;
-
    vtk_window_init_platform(vtk_window);
+   return vtk_window;
 }
 
 VkShaderModule vtk_compile_shader(VkDevice a_device, uint8_t const* bytes, size_t size) {

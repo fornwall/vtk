@@ -1,16 +1,11 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <CoreVideo/CVDisplayLink.h>
 
-// Gamepad - but extract to own files
-// #import <IOKit/hid/IOHIDLib.h>
-
 #include "vtk_cffi.h"
 #include "vtk_mac.h"
 #include "vtk_log.h"
 #include "vtk_internal.h"
 #include "rustffi.h"
-
-// #include <MoltenVK/mvk_vulkan.h>
 
 #pragma mark -
 #pragma mark VtkViewController
@@ -23,8 +18,6 @@
 }
 
 -(void) viewDidDisappear {
-    //CVDisplayLinkRelease(_displayLink);
-    // TODO: Vtk_cleanup(&Vtk);
     [super viewDidDisappear];
 }
 

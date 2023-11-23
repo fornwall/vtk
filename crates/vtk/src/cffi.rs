@@ -2,21 +2,13 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-pub trait VtkApplication {
-    fn setup_window(&mut self, device: &mut VtkDevice, window: &mut VtkWindow);
-    fn render_frame(&mut self, device: &mut VtkDevice, window: &mut VtkWindow);
-}
-
 pub struct VtkContext {
     native_handle: *mut VtkContextNative,
 }
 
 impl VtkContext {
-    pub fn new(mut application: Box<dyn VtkApplication>) -> Self {
-        let application_pointer = Box::into_raw(Box::new(application));
-        let native_handle =
-            unsafe { vtk_context_init(application_pointer as *mut ::std::os::raw::c_void) };
-        //assert!(okklklk);
+    pub fn new() -> Self {
+        let native_handle = unsafe { vtk_context_init() };
         Self { native_handle }
     }
 
@@ -28,8 +20,11 @@ impl VtkContext {
     /// Request a window to be opened.
     ///
     /// The request will be processed when `run()` is called.
-    pub fn request_window(&mut self, device: &mut VtkDevice) {
-        unsafe { vtk_window_init(device.native_handle) };
+    pub fn create_window(&mut self, device: &mut VtkDevice) -> VtkWindow {
+        let native_handle = unsafe { vtk_window_init(device.native_handle) };
+        VtkWindow {
+            native_handle
+        }
     }
 
     pub fn run(&mut self) {
@@ -43,6 +38,16 @@ pub struct VtkDevice {
 
 pub struct VtkWindow {
     pub(crate) native_handle: *mut VtkWindowNative,
+}
+
+unsafe impl Send for VtkWindow {}
+
+impl VtkWindow {
+    pub fn render(&mut self) {
+        unsafe {
+            vtk_render_frame(self.native_handle);
+        }
+    }
 }
 
 include!(concat!(env!("OUT_DIR"), "/cffi_bindings.rs"));

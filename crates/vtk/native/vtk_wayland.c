@@ -90,7 +90,7 @@ static void handleRegistry(void* data, struct wl_registry* registry, uint32_t na
     }
 }
 
-struct VtkContextNative* vtk_context_init(void* vtk_application) {
+struct VtkContextNative* vtk_context_init() {
 {
   struct wl_display* display;
   VTK_CHECK_WL_RESULT(display = wl_display_connect(NULL));

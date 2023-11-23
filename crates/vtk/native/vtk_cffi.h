@@ -21,15 +21,11 @@ extern "C" {
 struct VtkDeviceNative;
 struct VtkWindowNative;
 
-typedef void (*vtk_setup_callback)(struct VtkDeviceNative*, struct VtkWindowNative*);
-
 struct VtkContextNative {
 #ifdef __APPLE__
     /** <div rustbindgen private> */
     NSApplication* ns_application;
 #endif
-    void* vtk_application;
-    vtk_setup_callback setup_callback;
 };
 
 struct VtkDeviceNative {
@@ -83,14 +79,16 @@ struct VtkWindowNative {
 /** Null-terminated, static string. <div rustbindgen private> */
 VkShaderModule vtk_compile_shader(VkDevice vk_device, uint8_t const* bytes, size_t size);
 
-struct VtkContextNative* vtk_context_init(void* vtk_application);
+struct VtkContextNative* vtk_context_init();
 
 // Run the event loop.
 void vtk_context_run(struct VtkContextNative* context);
 
 struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context);
 
-void vtk_window_init(struct VtkDeviceNative* vtk_device);
+struct VtkWindowNative* vtk_window_init(struct VtkDeviceNative* vtk_device);
+
+void vtk_render_frame(struct VtkWindowNative* vtk_window);
 
 #ifdef __cplusplus
 }

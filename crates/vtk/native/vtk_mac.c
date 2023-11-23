@@ -7,7 +7,7 @@
 #include "vulkan_wrapper.h"
 #include "rustffi.h"
 
-struct VtkContextNative* vtk_context_init(void* vtk_application) {
+struct VtkContextNative* vtk_context_init() {
 #ifdef VTK_VULKAN_VALIDATION
     setenv("VK_LOADER_DEBUG", "all", 1);
 #endif
@@ -18,7 +18,6 @@ struct VtkContextNative* vtk_context_init(void* vtk_application) {
 
     struct VtkContextNative* result = malloc(sizeof(struct VtkContextNative));
     result->ns_application = ns_application;
-    result->vtk_application = vtk_application;
     return result;
 }
 
@@ -26,30 +25,6 @@ void vtk_context_run(struct VtkContextNative* vtk_context) {
     NSApplication* ns_application = vtk_context->ns_application;
     [ns_application activateIgnoringOtherApps:YES];
     [ns_application run];
-}
-
-// Rendering loop callback function for use with a CVDisplayLink.
-// https://developer.apple.com/documentation/corevideo/cvdisplaylinkoutputcallback
-static CVReturn DisplayLinkCallback(
-        // A display link that requests a frame.
-        CVDisplayLinkRef display_link __attribute__((unused)),
-        // A pointer to the current time.
-        const CVTimeStamp* _in_now __attribute__((unused)),
-        // A pointer to the display time for a frame.
-        const CVTimeStamp* _in_output_time __attribute__((unused)),
-        // Currently unused. Pass 0.
-        CVOptionFlags _flags_in __attribute__((unused)),
-        // Currently unused. Pass 0 __attribute__((unused)).
-        CVOptionFlags* _flags_out __attribute__((unused)),
-        // A pointer to app-defined data.
-        void* display_link_context) {
-    struct VtkWindowNative* vtk_window = (struct VtkWindowNative*) display_link_context;
-    struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
-    // TODO: Check if aborting..
-        vtk_application_render_frame(vtk_device->vtk_context->vtk_application, vtk_device, vtk_window);
-        vtk_render_frame(vtk_window);
-       // Aborting check done
-    return kCVReturnSuccess;
 }
 
 _Bool vtk_window_init_platform(struct VtkWindowNative* vtk_window) {
@@ -90,11 +65,5 @@ _Bool vtk_window_init_platform(struct VtkWindowNative* vtk_window) {
     CALL_VK(vkCreateMetalSurfaceEXT(vtk_device->vk_instance, &surface_create_info, NULL, &vtk_window->vk_surface));
     vtk_setup_window_rendering(vtk_window);
 
-    vtk_application_setup_window(vtk_device->vtk_context->vtk_application, vtk_device, vtk_window);
-
-    CVDisplayLinkRef _displayLink;
-    CVDisplayLinkCreateWithActiveCGDisplays(&_displayLink);
-    CVDisplayLinkSetOutputCallback(_displayLink, &DisplayLinkCallback, vtk_window);
-    CVDisplayLinkStart(_displayLink);
     return true;
 }

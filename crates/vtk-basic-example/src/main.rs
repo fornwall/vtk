@@ -1,28 +1,18 @@
-struct TriangleApplication {
-    value: u32,
-}
-
-impl vtk::VtkApplication for TriangleApplication {
-    fn setup_window(&mut self, device: &mut vtk::VtkDevice, window: &mut vtk::VtkWindow) {
-        // println!("Setup body - value = {}", self.value);
-    }
-    fn render_frame(&mut self, device: &mut vtk::VtkDevice, window: &mut vtk::VtkWindow) {
-        self.value += 1;
-        //println!("Render frame - value = {}", self.value);
-    }
-}
-
 fn main() {
-    let application = TriangleApplication { value: 23897 };
-    let application = Box::new(application);
-
     let vertex_shader_bytes =
         include_bytes!(concat!(env!("OUT_DIR"), "/shaders/triangle.vert.spv"));
     let fragment_shader_bytes =
         include_bytes!(concat!(env!("OUT_DIR"), "/shaders/triangle.vert.spv"));
 
-    let mut context = vtk::VtkContext::new(application);
+    let mut context = vtk::VtkContext::new();
     let mut device = context.create_device();
-    context.request_window(&mut device);
+    let mut window = context.create_window(&mut device);
+
+    let _ = std::thread::spawn(move || {
+        loop {
+            window.render();
+        }
+    });
+
     context.run();
 }
