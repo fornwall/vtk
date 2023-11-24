@@ -1,42 +1,50 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-pub const MACOS_SDK_VERSION: &str = "1.3.268.1";
-
 pub const VULKAN_SDK_VERSION_LINUX: &str = "1.3.268.0";
 
-#[cfg(target_os = "macos")]
-pub(crate) fn download_prebuilt_molten<P: AsRef<Path>>(target_dir: &P) {
-    std::fs::create_dir_all(target_dir).expect("Couldn't create directory");
+pub(crate) fn download_prebuilt_molten(out_dir: &str) -> PathBuf {
+    const MACOS_SDK_VERSION: &str = "1.3.268.1";
+
+    let moltenvk_dir = Path::new(&out_dir).join(format!("vulkan-sdk-{}", MACOS_SDK_VERSION));
+    if moltenvk_dir.exists() {
+        return moltenvk_dir;
+    }
+    let moltenvk_tmp_dir = Path::new(&out_dir).join(format!("vulkan-sdk-{}.tmp", MACOS_SDK_VERSION));
 
     let sdk_filename = format!("vulkansdk-macos-minimal-{MACOS_SDK_VERSION}.tar.xz");
     let download_url = format!(
         "https://github.com/fornwall/libvulkan-minimal/releases/download/0.0.12/{sdk_filename}"
     );
-    let download_path = target_dir.as_ref().join(&sdk_filename);
+    let download_path = Path::new(&out_dir).join(sdk_filename);
 
-    let curl_status = Command::new("curl")
-        .args(["--fail", "--location", "--silent", &download_url, "-o"])
-        .arg(&download_path)
-        .status()
-        .expect("Couldn't launch curl");
+    if !download_path.exists() {
+        // TODO: Checksum check
+        let curl_status = Command::new("curl")
+            .args(["--fail", "--location", "--silent", &download_url, "-o"])
+            .arg(&download_path)
+            .status()
+            .expect("Couldn't launch curl");
+        assert!(
+            curl_status.success(),
+            "failed to download prebuilt libraries"
+            );
+    }
 
-    assert!(
-        curl_status.success(),
-        "failed to download prebuilt libraries"
-    );
-
+    std::fs::create_dir_all(&moltenvk_tmp_dir).expect("Couldn't create directory");
     let untar_status = Command::new("tar")
         .arg("xf")
         .arg(&download_path)
         .arg("--strip-components")
         .arg("1")
         .arg("-C")
-        .arg(target_dir.as_ref())
+        .arg(&moltenvk_tmp_dir)
         .status()
         .expect("Couldn't launch unzip");
 
     assert!(untar_status.success(), "failed to run unzip");
+    std::fs::rename(&moltenvk_tmp_dir, &moltenvk_dir).unwrap();
+    moltenvk_dir
 }
 
 pub(crate) fn download_vulkan_linux_sdk<P: AsRef<Path>>(target_dir: &P) {
@@ -127,8 +135,7 @@ fn main() {
     } else if build_target_os == "macos" || build_target_os == "ios" {
         // let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
 
-        let target_dir = Path::new(&out_dir).join(format!("vulkan-sdk-{}", MACOS_SDK_VERSION));
-        download_prebuilt_molten(&target_dir);
+        let target_dir = download_prebuilt_molten(&out_dir);
 
         let vulkan_sdk_include_dir = format!("{}/macOS/include", target_dir.display());
         let vulkan_sdk_lib_dir = format!("{}/macOS/lib", target_dir.display());

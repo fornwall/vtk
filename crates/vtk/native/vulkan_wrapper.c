@@ -70,6 +70,7 @@ bool vtk_load_vulkan_symbols() {
     vkBindBufferMemory = (PFN_vkBindBufferMemory) dlsym(libvulkan, "vkBindBufferMemory");
     vkBindImageMemory = (PFN_vkBindImageMemory) dlsym(libvulkan, "vkBindImageMemory");
     vkGetBufferMemoryRequirements = (PFN_vkGetBufferMemoryRequirements) dlsym(libvulkan, "vkGetBufferMemoryRequirements");
+    vkGetBufferMemoryRequirements2 = (PFN_vkGetBufferMemoryRequirements2) dlsym(libvulkan, "vkGetBufferMemoryRequirements2");
     vkGetImageMemoryRequirements = (PFN_vkGetImageMemoryRequirements) dlsym(libvulkan, "vkGetImageMemoryRequirements");
     vkGetImageSparseMemoryRequirements = (PFN_vkGetImageSparseMemoryRequirements) dlsym(libvulkan,
                                                                                                         "vkGetImageSparseMemoryRequirements");
@@ -280,6 +281,7 @@ PFN_vkGetDeviceMemoryCommitment vkGetDeviceMemoryCommitment;
 PFN_vkBindBufferMemory vkBindBufferMemory;
 PFN_vkBindImageMemory vkBindImageMemory;
 PFN_vkGetBufferMemoryRequirements vkGetBufferMemoryRequirements;
+PFN_vkGetBufferMemoryRequirements2 vkGetBufferMemoryRequirements2;
 PFN_vkGetImageMemoryRequirements vkGetImageMemoryRequirements;
 PFN_vkGetImageSparseMemoryRequirements vkGetImageSparseMemoryRequirements;
 PFN_vkGetPhysicalDeviceSparseImageFormatProperties vkGetPhysicalDeviceSparseImageFormatProperties;

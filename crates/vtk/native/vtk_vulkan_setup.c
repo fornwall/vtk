@@ -648,98 +648,59 @@ void vtk_render_frame(struct VtkWindowNative* vtk_window) {
     }
 }
 
-bool vtk_find_memory_idx(VkPhysicalDevice device, uint32_t typeBits, VkFlags requirements_mask, uint32_t *typeIndex) {
+uint32_t vtk_find_memory_idx(VkPhysicalDevice vk_device, uint32_t typeBits, VkFlags requirements_mask, bool* found) {
     VkPhysicalDeviceMemoryProperties memoryProperties;
-    vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
+    vkGetPhysicalDeviceMemoryProperties(vk_device, &memoryProperties);
     for (uint32_t memory_index = 0; memory_index < memoryProperties.memoryTypeCount; memory_index++) {
         if ((typeBits & (1 << memory_index)) == 1) {
             if ((memoryProperties.memoryTypes[memory_index].propertyFlags & requirements_mask) ==
                 requirements_mask) {
-                *typeIndex = memory_index;
-                return true;
+                *found = true;
+		return memory_index;
             }
         }
     }
-    return false;
+    *found = false;
+    return 0;
+}
+
+void vtk_create_vertex_buffer(struct VtkDeviceNative* vtk_device, uint64_t buffer_size) {
+    VkDevice vk_device = vtk_device->vk_device;
+    VkBuffer* vk_vertex_buffer = &vtk_device->vk_vertex_buffer;
+    VkDeviceMemory* vk_device_memory = &vtk_device->vk_vertex_buffer_device_memory;
+
+    VkBufferCreateInfo createBufferInfo = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .pNext = NULL,
+            .flags = 0,
+            .size = buffer_size,
+            .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 1,
+            .pQueueFamilyIndices = &vtk_device->graphics_queue_family_idx,
+    };
+    CALL_VK(vkCreateBuffer(vk_device, &createBufferInfo, NULL, vk_vertex_buffer))
+
+    VkMemoryRequirements vk_memory_requirements;
+    vkGetBufferMemoryRequirements(vk_device, *vk_vertex_buffer, &vk_memory_requirements);
+    bool found_memory_type;
+    VkFlags memory_type_bits = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    uint32_t memory_type_idx = vtk_find_memory_idx(vtk_device->vk_physical_device, vk_memory_requirements.memoryTypeBits, memory_type_bits, &found_memory_type);
+    assert(found_memory_type);
+    VkMemoryAllocateInfo vk_memory_allocation_info = {
+            .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            .pNext = NULL,
+            .allocationSize = buffer_size,
+            .memoryTypeIndex = memory_type_idx,
+    };
+
+    CALL_VK(vkAllocateMemory(vk_device, &vk_memory_allocation_info, NULL, vk_device_memory))
+    CALL_VK(vkMapMemory(vk_device, *vk_device_memory, 0, vk_memory_allocation_info.allocationSize, 0, &vtk_device->vertex_buffer_ptr))
+    CALL_VK(vkBindBufferMemory(vk_device, *vk_vertex_buffer, *vk_device_memory, 0))
+    vtk_device->vertex_buffer_size = buffer_size;
 }
 
 /*
-// A helper function
-
-void create_vertex_buffer() {
-    // -----------------------------------------------
-    // Create the triangle vertex buffer
-
-    // Vertex positions
-    const float vertex_position_data[] = {
-            // position[0]
-            -1.0f, -1.0f, 0.0f,
-            // position[1]
-            1.0f, -1.0f, 0.0f,
-            // position[2]
-            0.0f, 1.0f, 0.0f,
-    };
-    const float vertex_color_data[] = {
-            1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 1.0f,
-            0.0f, 0.0f, 1.0f,
-    };
-
-    VkBuffer* new_buffers[2] = {
-            &buffers.vk_vertex_position_buffer,
-            &buffers.vk_vertex_color_buffer,
-    };
-
-    VkDeviceMemory deviceMemory;
-    void *data;
-
-    for (int i = 0; i < 2; i++) {
-        // Create a vertex buffer
-        VkBufferCreateInfo createBufferInfo = {
-                .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-                .pNext = NULL,
-                .flags = 0,
-                .size = sizeof(vertex_position_data), // TODO: Using same for color and position
-                .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-                .queueFamilyIndexCount = 1,
-                .pQueueFamilyIndices = &device.queueFamilyIndex_,
-        };
-
-        CALL_VK(vkCreateBuffer(device.vk_device, &createBufferInfo, NULL, new_buffers[i]))
-
-        VkMemoryRequirements memReq;
-        vkGetBufferMemoryRequirements(device.vk_device, *new_buffers[i], &memReq);
-        if (i == 0) {
-            VkMemoryAllocateInfo vk_memory_allocation_info = {
-                    .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-                    .pNext = NULL,
-                    .allocationSize = memReq.size * 10, // TODO: hack, should allocate more
-                    .memoryTypeIndex = 0,  // Memory type assigned in the next step
-            };
-
-            // Assign the proper memory type for that buffer
-            VkFlags memory_requirements = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-            bool found_memory_idx = MapMemoryTypeToIndex(memReq.memoryTypeBits, memory_requirements, &vk_memory_allocation_info.memoryTypeIndex);
-            if (!found_memory_idx) {
-                LOGE("No memory idx found\n");
-                assert(found_memory_idx);
-            }
-
-            // Allocate memory for the buffer
-            CALL_VK(vkAllocateMemory(device.vk_device, &vk_memory_allocation_info, NULL, &deviceMemory))
-            CALL_VK(vkMapMemory(device.vk_device, deviceMemory, 0, vk_memory_allocation_info.allocationSize, 0, &data))
-        }
-
-        size_t buffer_offset = ((i == 0) ? 0 : sizeof(vertex_position_data));
-        CALL_VK(vkBindBufferMemory(device.vk_device, *new_buffers[i], deviceMemory, buffer_offset))
-        memcpy(data + buffer_offset, (i == 0) ? vertex_position_data : vertex_color_data,
-               sizeof(vertex_position_data)); // TODO: using position for size for both
-    }
-
-    vkUnmapMemory(device.vk_device, deviceMemory);
-}
-
 void delete_vertex_buffers(void) {
     vkDestroyBuffer(device.vk_device, buffers.vk_vertex_position_buffer, NULL);
     vkDestroyBuffer(device.vk_device, buffers.vk_vertex_color_buffer, NULL);

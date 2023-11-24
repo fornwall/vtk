@@ -36,6 +36,8 @@ pub struct VtkDevice {
     pub(crate) native_handle: *mut VtkDeviceNative,
 }
 
+unsafe impl Send for VtkDevice {}
+
 pub struct VtkWindow {
     pub(crate) native_handle: *mut VtkWindowNative,
 }
@@ -48,6 +50,13 @@ impl VtkWindow {
             vtk_render_frame(self.native_handle);
         }
     }
+}
+
+pub struct VtkBufferAllocator {
+    pointer: *mut std::ffi::c_void,
+    size: u64,
+    buffer: VkBuffer,
+    memory: VkDeviceMemory,
 }
 
 include!(concat!(env!("OUT_DIR"), "/cffi_bindings.rs"));

@@ -7,7 +7,7 @@ bitflags! {
     /// Represents a set of flags.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     #[repr(C)]
-    pub struct Key: u32 {
+    pub struct Key: u64 {
         const ArrowUp = 1;
         const ArrowRight = 1 << 1;
         const ArrowDown = 1 << 2;

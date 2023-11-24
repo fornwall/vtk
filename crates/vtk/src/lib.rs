@@ -18,4 +18,26 @@ impl KeyInput {
     }
 }
 
+#[derive(Copy, Clone)]
+enum KeyCode {
+    A,
+    B,
+    C,
+    D,
+}
+
+enum KeyModifiers {
+    Ctrl,
+    Alt,
+    Cmd,
+}
+
+struct KeyPressed {
+
+}
+
+enum MainThreadEvent {
+
+}
+
 struct TickInput {}

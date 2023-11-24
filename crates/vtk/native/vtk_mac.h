@@ -10,7 +10,6 @@
 @interface VtkViewController : NSViewController {
     @public
     struct VtkWindowNative* vtk_window;
-    BOOL _stop;
 }
 @end
 
