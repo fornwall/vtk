@@ -6,7 +6,6 @@
 #include "vtk_mac.h"
 #include "vulkan_wrapper.h"
 #include "rustffi.h"
-#include <wayland-client.h>
 
 struct VtkContextNative* vtk_context_init() {
 #ifdef VTK_VULKAN_VALIDATION
