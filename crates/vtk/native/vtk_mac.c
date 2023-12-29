@@ -6,6 +6,7 @@
 #include "vtk_mac.h"
 #include "vulkan_wrapper.h"
 #include "rustffi.h"
+#include <wayland-client.h>
 
 struct VtkContextNative* vtk_context_init() {
 #ifdef VTK_VULKAN_VALIDATION
@@ -60,9 +61,8 @@ _Bool vtk_window_init_platform(struct VtkWindowNative* vtk_window) {
         .flags = 0,
         .pLayer = metal_layer,
     };
+    CALL_VK(vkCreateMetalSurfaceEXT(vtk_window->vtk_device->vk_instance, &surface_create_info, NULL, &vtk_window->vk_surface));
 
-    struct VtkDeviceNative* vtk_device = vtk_window->vtk_device;
-    CALL_VK(vkCreateMetalSurfaceEXT(vtk_device->vk_instance, &surface_create_info, NULL, &vtk_window->vk_surface));
     vtk_setup_window_rendering(vtk_window);
 
     return true;

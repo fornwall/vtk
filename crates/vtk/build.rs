@@ -1,24 +1,18 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-pub const VULKAN_SDK_VERSION_LINUX: &str = "1.3.268.0";
-
-pub(crate) fn download_prebuilt_molten(out_dir: &str) -> PathBuf {
-    const MACOS_SDK_VERSION: &str = "1.3.268.1";
-
-    let moltenvk_dir = Path::new(&out_dir).join(format!("vulkan-sdk-{}", MACOS_SDK_VERSION));
-    if moltenvk_dir.exists() {
-        return moltenvk_dir;
+pub(crate) fn download_minimal_vulkan_sdk(out_dir: &str, directory_name: &str) -> PathBuf {
+    const MINIMAL_VULKAN_SDK_VERSION: &str = "0.0.16";
+    let sdk_dir = Path::new(&out_dir).join(format!("vulkan-sdk-{}", MINIMAL_VULKAN_SDK_VERSION));
+    if sdk_dir.exists() {
+        return sdk_dir;
     }
-    let moltenvk_tmp_dir = Path::new(&out_dir).join(format!("vulkan-sdk-{}.tmp", MACOS_SDK_VERSION));
 
-    let sdk_filename = format!("vulkansdk-macos-minimal-{MACOS_SDK_VERSION}.tar.xz");
-    let download_url = format!(
-        "https://github.com/fornwall/libvulkan-minimal/releases/download/0.0.12/{sdk_filename}"
-    );
-    let download_path = Path::new(&out_dir).join(sdk_filename);
+    let sdk_filename = format!("{directory_name}.tar.xz");
+    let download_path = Path::new(&out_dir).join(&sdk_filename);
 
     if !download_path.exists() {
+        let download_url = format!("https://github.com/fornwall/libvulkan-minimal/releases/download/{MINIMAL_VULKAN_SDK_VERSION}/{sdk_filename}");
         // TODO: Checksum check
         let curl_status = Command::new("curl")
             .args(["--fail", "--location", "--silent", &download_url, "-o"])
@@ -27,58 +21,25 @@ pub(crate) fn download_prebuilt_molten(out_dir: &str) -> PathBuf {
             .expect("Couldn't launch curl");
         assert!(
             curl_status.success(),
-            "failed to download prebuilt libraries"
+            "failed to download prebuilt libraries: {download_url}"
             );
     }
 
-    std::fs::create_dir_all(&moltenvk_tmp_dir).expect("Couldn't create directory");
+    let sdk_tmp_dir = Path::new(&out_dir).join(format!("vulkan-sdk-{}.tmp", MINIMAL_VULKAN_SDK_VERSION));
+    std::fs::create_dir_all(&sdk_tmp_dir).expect("Couldn't create directory");
     let untar_status = Command::new("tar")
         .arg("xf")
         .arg(&download_path)
         .arg("--strip-components")
         .arg("1")
         .arg("-C")
-        .arg(&moltenvk_tmp_dir)
+        .arg(&sdk_tmp_dir)
         .status()
         .expect("Couldn't launch unzip");
 
     assert!(untar_status.success(), "failed to run unzip");
-    std::fs::rename(&moltenvk_tmp_dir, &moltenvk_dir).unwrap();
-    moltenvk_dir
-}
-
-pub(crate) fn download_vulkan_linux_sdk<P: AsRef<Path>>(target_dir: &P) {
-    std::fs::create_dir_all(target_dir).expect("Couldn't create directory");
-
-    let sdk_filename = format!("vulkansdk-linux-minimal-x86_64-{VULKAN_SDK_VERSION_LINUX}.tar.xz");
-
-    let download_url = format!(
-        "https://github.com/fornwall/libvulkan-minimal/releases/download/0.0.12/{sdk_filename}"
-    );
-    let download_path = target_dir.as_ref().join(&sdk_filename);
-
-    let curl_status = Command::new("curl")
-        .args(["--fail", "--location", "--silent", &download_url, "-o"])
-        .arg(&download_path)
-        .status()
-        .expect("Couldn't launch curl");
-
-    assert!(
-        curl_status.success(),
-        "failed to download vulkan sdk: {download_url}"
-    );
-
-    let untar_status = Command::new("tar")
-        .arg("xf")
-        .arg(&download_path)
-        .arg("--strip-components")
-        .arg("1")
-        .arg("-C")
-        .arg(target_dir.as_ref())
-        .status()
-        .expect("Couldn't launch unzip");
-
-    assert!(untar_status.success(), "failed to run unzip");
+    std::fs::rename(&sdk_tmp_dir, &sdk_dir).unwrap();
+    sdk_dir
 }
 
 fn main() {
@@ -134,11 +95,9 @@ fn main() {
         build_c_file(&mut cc, "native/vtk_android.c");
     } else if build_target_os == "macos" || build_target_os == "ios" {
         // let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
-
-        let target_dir = download_prebuilt_molten(&out_dir);
-
-        let vulkan_sdk_include_dir = format!("{}/macOS/include", target_dir.display());
-        let vulkan_sdk_lib_dir = format!("{}/macOS/lib", target_dir.display());
+        let target_dir = download_minimal_vulkan_sdk(&out_dir, "vulkansdk-macos-minimal");
+        let vulkan_sdk_include_dir = format!("{}/include", target_dir.display());
+        let vulkan_sdk_lib_dir = format!("{}/lib", target_dir.display());
 
         #[cfg(feature = "validation")]
         {
@@ -146,7 +105,7 @@ fn main() {
             // Link to the libvulkan.dylib loader:
             println!("cargo:rustc-link-lib=dylib=vulkan");
             // See https://vulkan.lunarg.com/doc/sdk/1.3.268.0/windows/layer_configuration.html
-            let vulkan_sdk_share_dir = format!("{}/macOS/share", target_dir.display());
+            let vulkan_sdk_share_dir = format!("{}/share", target_dir.display());
             let vtk_icd_filenames =
                 format!("{}/vulkan/icd.d/MoltenVK_icd.json", vulkan_sdk_share_dir);
             let vtk_layer_path = format!("{}/vulkan/explicit_layer.d", vulkan_sdk_share_dir);
@@ -175,37 +134,31 @@ fn main() {
         build_c_file(&mut cc, "native/vtk_mac.c");
         build_c_file(&mut cc, "native/platforms/mac/VtkViewController.m");
     } else if build_target_os == "linux" {
-        let target_dir =
-            Path::new(&out_dir).join(format!("vulkan-sdk-{}", VULKAN_SDK_VERSION_LINUX));
-        download_vulkan_linux_sdk(&target_dir);
+        let target_dir = download_minimal_vulkan_sdk(&out_dir, "vulkansdk-linux-minimal-x86_64");
         let mut pb = PathBuf::from(
             std::env::var("CARGO_MANIFEST_DIR").expect("unable to find env:CARGO_MANIFEST_DIR"),
         );
         pb.push(target_dir);
-        pb.push("x86_64/");
+
         let mut include_dir = pb.clone();
         include_dir.push("include");
-        let mut share_dir = pb.clone();
-        share_dir.push("share");
-        pb.push("lib/");
+        cc.include(&include_dir);
 
-        //println!("cargo:rustc-link-search=native={}", pb.display());
-
+        let mut lib_dir = pb.clone();
+        lib_dir.push("lib");
+        println!("cargo:rustc-link-search=native={}", lib_dir.display());
         // Link to the libvulkan.so loader:
         println!("cargo:rustc-link-lib=dylib=vulkan");
+        // Link to wayland-client
+        println!("cargo:rustc-link-lib=dylib=wayland-client");
 
         #[cfg(feature = "validation")]
         {
             // Setup so that vulkan validation layers can be loaded easily.
             // See https://vulkan.lunarg.com/doc/sdk/1.3.268.0/windows/layer_configuration.html
-            let vtk_icd_filenames =
-                format!("{}/vulkan/icd.d/MoltenVK_icd.json", share_dir.display());
-            cc.define("VTK_ICD_FILENAMES", Some(&vtk_icd_filenames[..]));
-            let vtk_layer_path = format!("{}/vulkan/explicit_layer.d", share_dir.display());
+            let vtk_layer_path = format!("{}/etc/vulkan/explicit_layer.d", pb.display());
             cc.define("VTK_LAYER_PATH", Some(&vtk_layer_path[..]));
         }
-
-        cc.include(&include_dir);
 
         build_c_file(&mut cc, "native/vtk_wayland.c");
 

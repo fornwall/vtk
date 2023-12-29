@@ -14,6 +14,8 @@
 # define VK_USE_PLATFORM_MACOS_MVK 1
 # define VK_USE_PLATFORM_METAL_EXT 1
 # define VK_ENABLE_BETA_EXTENSIONS 1
+#elif defined __linux__
+# define VK_USE_PLATFORM_WAYLAND_KHR 1
 #endif
 
 #include <vulkan/vulkan.h>

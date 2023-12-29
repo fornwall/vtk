@@ -21,14 +21,37 @@ extern "C" {
 struct VtkDeviceNative;
 struct VtkWindowNative;
 
+#ifdef __ANDROID__
+// TODO
+#elif defined __linux__
+struct wl_display;
+struct wl_registry;
+struct xdg_wm_base;
+struct wl_surface;
+struct xdg_surface;
+#endif
+
 struct VtkContextNative {
 #ifdef __APPLE__
     /** <div rustbindgen private> */
     NSApplication* ns_application;
+#elif defined __ANDROID__
+    // TODO:
+#elif defined __linux__
+    /** <div rustbindgen private> */
+    struct wl_display* wayland_display;
+    /** <div rustbindgen private> */
+    struct wl_registry* wayland_registry;
+    /** <div rustbindgen private> */
+    struct wl_compositor* wayland_compositor;
+    /** <div rustbindgen private> */
+    struct xdg_wm_base* wayland_shell;
 #endif
 };
 
 struct VtkDeviceNative {
+    struct VtkContextNative* vtk_context;
+
     _Bool initialized;
     VkInstance vk_instance;
     VkPhysicalDevice vk_physical_device;
@@ -45,8 +68,6 @@ struct VtkDeviceNative {
     uint32_t vertex_buffer_size;
     // The device memory backing the vertex buffer.
     VkDeviceMemory vk_vertex_buffer_device_memory;
-
-    struct VtkContextNative* vtk_context;
 };
 
 struct VtkWindowNative {
@@ -76,6 +97,11 @@ struct VtkWindowNative {
     /** Platform-specific data. <div rustbindgen private> */
     VtkViewController* vtk_view_controller;
     NSApplication* ns_application;
+#elif defined __ANDROID__
+    // TODO:
+#elif defined __linux__
+    struct wl_surface* wayland_surface;
+    struct xdg_surface* wayland_shell_surface;
 #endif
 };
 

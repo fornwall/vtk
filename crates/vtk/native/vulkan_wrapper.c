@@ -3,23 +3,29 @@
 #if defined(__APPLE__) && !defined(VTK_NO_VULKAN_LOADING)
 #include <stdlib.h>
 #endif
+#include "vtk_log.h"
+
+#include <stdbool.h>
 
 bool vtk_load_vulkan_symbols() {
 #ifdef VTK_NO_VULKAN_LOADING
     return true;
 #else
 
-#ifdef __APPLE__
-    // Setup so that the vulkan layer can load from our bundled macOS/MoltenVK SDK:
 #define xstr(s) str(s)
 #define str(s) #s
+// Setup so that the vulkan layer can load from our bundled vulkan/MoltenVK SDK:
+#ifdef VTK_ICD_FILENAMES
     setenv("VK_ICD_FILENAMES", xstr(VTK_ICD_FILENAMES), 1);
+#endif
+#ifdef VTK_LAYER_PATH
+    LOGI("LAYER_PATH: %s", xstr(VTK_LAYER_PATH));
     setenv("VK_LAYER_PATH", xstr(VTK_LAYER_PATH), 1);
+#endif
 #undef xstr
 #undef str
-#endif
 
-    void *libvulkan = dlopen(
+    void* libvulkan = dlopen(
 #ifdef __APPLE__
 		    "libvulkan.dylib"
 #else
@@ -27,7 +33,8 @@ bool vtk_load_vulkan_symbols() {
 #endif
 		    , RTLD_NOW | RTLD_LOCAL);
     if (!libvulkan) {
-        return false;
+        LOGE("Cannot load libvulkan");
+        exit(1);
     }
 
     vkCreateInstance = (PFN_vkCreateInstance) dlsym(libvulkan, "vkCreateInstance");

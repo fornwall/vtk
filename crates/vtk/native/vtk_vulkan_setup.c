@@ -17,8 +17,14 @@ void set_image_layout(VkCommandBuffer cmdBuffer, VkImage image,
                       VkPipelineStageFlags destStages);
 
 void vtk_setup_surface_format(struct VtkWindowNative* vtk_window) {
+    assert(vtk_window != NULL);
+    assert(vtk_window->vtk_device != NULL);
+    assert(vtk_window->vk_surface != NULL);
+    assert(vtk_window->vtk_device->vk_physical_device != NULL);
+    LOGI("Before vkGetPhysicalDeviceSurfaceFormatsKHR");
     uint32_t format_count = 0;
     CALL_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(vtk_window->vtk_device->vk_physical_device, vtk_window->vk_surface, &format_count, NULL))
+    LOGI("After vkGetPhysicalDeviceSurfaceFormatsKHR");
     VkSurfaceFormatKHR *formats = VTK_ARRAY_ALLOC(VkSurfaceFormatKHR, format_count);
     CALL_VK(vkGetPhysicalDeviceSurfaceFormatsKHR(vtk_window->vtk_device->vk_physical_device, vtk_window->vk_surface, &format_count, formats))
     uint32_t chosenFormat;
@@ -61,7 +67,7 @@ void vtk_create_swap_chain(struct VtkWindowNative* vtk_window) {
             // Handle rotation ourselves for best performance, see:
             // https://developer.android.com/games/optimize/vulkan-prerotation
             .preTransform = vk_surface_capabilities.currentTransform,
-            .compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+            .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, // VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
             .presentMode = VK_PRESENT_MODE_FIFO_KHR,
             .clipped = VK_TRUE,
             .oldSwapchain = VK_NULL_HANDLE,
@@ -646,6 +652,7 @@ void vtk_render_frame(struct VtkWindowNative* vtk_window) {
             assert(false);
             break;
     }
+    LOGE("FRAME RENDER");
 }
 
 uint32_t vtk_find_memory_idx(VkPhysicalDevice vk_device, uint32_t typeBits, VkFlags requirements_mask, bool* found) {
