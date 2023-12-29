@@ -7,7 +7,7 @@ fn main() {
         let vertex_shader_bytes =
             include_bytes!(concat!(env!("OUT_DIR"), "/shaders/triangle.vert.spv"));
         let fragment_shader_bytes =
-            include_bytes!(concat!(env!("OUT_DIR"), "/shaders/triangle.vert.spv"));
+            include_bytes!(concat!(env!("OUT_DIR"), "/shaders/triangle.frag.spv"));
 
         loop {
             window.render();
