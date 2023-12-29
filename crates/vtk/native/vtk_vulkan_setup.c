@@ -2,6 +2,7 @@
 #include "vtk_cffi.h"
 #include "vtk_array.h"
 #include "vtk_internal.h"
+#include "vtk_platform.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -44,11 +45,14 @@ void vtk_create_swap_chain(struct VtkWindowNative* vtk_window) {
 
     VkSurfaceCapabilitiesKHR vk_surface_capabilities;
     CALL_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vtk_device->vk_physical_device, vtk_window->vk_surface, &vk_surface_capabilities))
+#ifndef VTK_PLATFORM_WAYLAND
+    // On Wayland we need to set the surface width here when creating the swap chain.
     vtk_window->vk_extent_2d = vk_surface_capabilities.currentExtent;
+#endif
 
-    VkSurfaceCapabilitiesKHR surfaceCap;
-    CALL_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vtk_device->vk_physical_device, vtk_window->vk_surface, &surfaceCap))
-    assert(surfaceCap.supportedCompositeAlpha | VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR);
+    //VkSurfaceCapabilitiesKHR surfaceCap;
+    //CALL_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vtk_device->vk_physical_device, vtk_window->vk_surface, &surfaceCap))
+    //assert(surfaceCap.supportedCompositeAlpha | VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR);
 
     LOGI("vk_surface_capabilities.minImageCount = %d", vk_surface_capabilities.minImageCount);
     VkSwapchainCreateInfoKHR swapchainCreateInfo = {
@@ -58,7 +62,7 @@ void vtk_create_swap_chain(struct VtkWindowNative* vtk_window) {
             .minImageCount = vk_surface_capabilities.minImageCount,
             .imageFormat = vtk_window->vk_surface_format,
             .imageColorSpace = vtk_window->vk_color_space,
-            .imageExtent = vk_surface_capabilities.currentExtent,
+            .imageExtent = vtk_window->vk_extent_2d,
             .imageArrayLayers = 1,
             .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
             .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,

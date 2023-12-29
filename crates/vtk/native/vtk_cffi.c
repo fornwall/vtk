@@ -99,10 +99,20 @@ struct VtkDeviceNative* vtk_device_init(struct VtkContextNative* vtk_context)
 
     uint32_t queueFamilyCount;
     vkGetPhysicalDeviceQueueFamilyProperties(device->vk_physical_device, &queueFamilyCount, NULL);
+    LOGI("Device queue family count: %d", queueFamilyCount);
     assert(queueFamilyCount);
     VkQueueFamilyProperties* queueFamilyProperties = VTK_ARRAY_ALLOC(VkQueueFamilyProperties, queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device->vk_physical_device, &queueFamilyCount, queueFamilyProperties);
     uint32_t queue_family_idx;
+    /*
+    for (queue_family_idx = 0; queue_family_idx < queueFamilyCount; queue_family_idx++) {
+        uint32_t flags = queueFamilyProperties[queue_family_idx].queueFlags;
+        LOGI("Queue family: %d", queue_family_idx);
+        if (flags & VK_QUEUE_GRAPHICS_BIT) LOGI("  - VK_QUEUE_GRAPHICS_BIT");
+        if (flags & VK_QUEUE_COMPUTE_BIT) LOGI("  - VK_QUEUE_COMPUTE_BIT");
+        if (flags & VK_QUEUE_TRANSFER_BIT) LOGI("  - VK_QUEUE_TRANSFER_BIT");
+    }
+    */
     for (queue_family_idx = 0; queue_family_idx < queueFamilyCount; queue_family_idx++) {
         if (queueFamilyProperties[queue_family_idx].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             break;

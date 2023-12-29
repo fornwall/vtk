@@ -114,6 +114,10 @@ _Bool vtk_window_init_platform(struct VtkWindowNative* vtk_window) {
   wl_display_roundtrip(vtk_context->wayland_display);
   wl_surface_commit(vtk_window->wayland_surface);
 
+  // TODO: Handle initial window size
+  vtk_window->vk_extent_2d.width = 800;
+  vtk_window->vk_extent_2d.height = 800;
+
   VkWaylandSurfaceCreateInfoKHR surface_create_info = {
     .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
     .display = vtk_context->wayland_display,

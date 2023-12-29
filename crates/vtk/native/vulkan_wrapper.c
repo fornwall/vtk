@@ -19,7 +19,6 @@ bool vtk_load_vulkan_symbols() {
     setenv("VK_ICD_FILENAMES", xstr(VTK_ICD_FILENAMES), 1);
 #endif
 #ifdef VTK_LAYER_PATH
-    LOGI("LAYER_PATH: %s", xstr(VTK_LAYER_PATH));
     setenv("VK_LAYER_PATH", xstr(VTK_LAYER_PATH), 1);
 #endif
 #undef xstr
