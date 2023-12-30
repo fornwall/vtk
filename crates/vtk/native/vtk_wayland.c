@@ -41,21 +41,54 @@ static const struct xdg_surface_listener shellSurfaceListener = {
 
 static void handleToplevelConfigure(void* data, struct xdg_toplevel* toplevel, int32_t width, int32_t height, struct wl_array* states) {
     if (width != 0 && height != 0) {
-        LOGE("handleToplevelClose called: %d, %d", width, height);
+        LOGE("handleToplevelConfigure called: %d, %d", width, height);
         //resize = 1;
         //newWidth = width;
         //newHeight = height;
     }
 }
 
-static void handleToplevelClose(void* data, struct xdg_toplevel* toplevel) {
+static void vtk_wayland_callback_top_level_close(void* data, struct xdg_toplevel* toplevel) {
     // quit = 1;
     LOGE("handleToplevelClose called");
 }
 
 static const struct xdg_toplevel_listener toplevelListener = {
     .configure = handleToplevelConfigure,
-    .close = handleToplevelClose
+    .close = vtk_wayland_callback_top_level_close,
+};
+
+static void wl_seat_capabilities(void *data, struct wl_seat *wl_seat, uint32_t capabilities) {
+    struct VtkContextNative* vtk_context = (struct VtkContextNative*) data;
+
+    bool have_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
+    if (have_pointer && vtk_context->wayland_pointer == NULL) {
+        vtk_context->wayland_pointer = wl_seat_get_pointer(vtk_context->wayland_seat);
+        // TODO: https://wayland-book.com/seat/example.html
+        //wl_pointer_add_listener(vtk_context->wayland_pointer, &wl_pointer_listener, state);
+    } else if (!have_pointer && vtk_context->wayland_pointer  != NULL) {
+        wl_pointer_release(vtk_context->wayland_pointer);
+        vtk_context->wayland_pointer = NULL;
+    }
+
+    bool have_keyboard = capabilities & WL_SEAT_CAPABILITY_KEYBOARD;
+    if (have_keyboard && vtk_context->wayland_keyboard == NULL) {
+        vtk_context->wayland_keyboard = wl_seat_get_keyboard(vtk_context->wayland_seat);
+        // TODO: https://wayland-book.com/seat/example.html
+        //wl_keyboard_add_listener(vtk_context->wayland_keyboard, &wl_keyboard_listener, state);
+    } else if (!have_keyboard && vtk_context->wayland_keyboard  != NULL) {
+        wl_keyboard_release(vtk_context->wayland_keyboard);
+        vtk_context->wayland_keyboard = NULL;
+    }
+}
+
+static void wl_seat_name(void *data, struct wl_seat *wl_seat, const char *name) {
+       LOGI("seat name: '%s'", name);
+}
+
+static const struct wl_seat_listener wl_seat_listener = {
+     .capabilities = wl_seat_capabilities,
+     .name = wl_seat_name,
 };
 
 static void handleRegistry(void* data, struct wl_registry* registry, uint32_t name, const char* interface, uint32_t version) {
@@ -65,6 +98,9 @@ static void handleRegistry(void* data, struct wl_registry* registry, uint32_t na
     } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
         VTK_CHECK_WL_RESULT(vtk_context_native->wayland_shell = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1));
         xdg_wm_base_add_listener(vtk_context_native->wayland_shell, &shellListener, NULL);
+    } else if (strcmp(interface, wl_seat_interface.name) == 0) {
+        VTK_CHECK_WL_RESULT(vtk_context_native->wayland_seat = wl_registry_bind(registry, name, &wl_seat_interface, 7));
+        wl_seat_add_listener(vtk_context_native->wayland_seat, &wl_seat_listener, data);
     }
 }
 
@@ -89,7 +125,9 @@ struct VtkContextNative* vtk_context_init() {
 }
 
 void vtk_context_run(struct VtkContextNative* vtk_context) {
-    // TODO
+    while (wl_display_dispatch(vtk_context->wayland_display) != -1) {
+        /* This space deliberately left blank */
+    }
 }
 
 

@@ -27,8 +27,11 @@ struct VtkWindowNative;
 struct wl_display;
 struct wl_registry;
 struct xdg_wm_base;
-struct wl_surface;
 struct xdg_surface;
+struct wl_surface;
+struct wl_seat;
+struct wl_keyboard;
+struct wl_pointer;
 #endif
 
 struct VtkContextNative {
@@ -46,6 +49,9 @@ struct VtkContextNative {
     struct wl_compositor* wayland_compositor;
     /** <div rustbindgen private> */
     struct xdg_wm_base* wayland_shell;
+    struct wl_seat* wayland_seat;
+    struct wl_keyboard* wayland_keyboard;
+    struct wl_pointer* wayland_pointer;
 #endif
 };
 

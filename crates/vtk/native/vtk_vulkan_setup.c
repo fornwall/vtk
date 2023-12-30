@@ -423,7 +423,7 @@ void vtk_record_command_buffers(struct VtkWindowNative* vtk_window) {
                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
         // Now we start a renderpass. Any draw command has to be recorded in a renderpass.
-        VkClearValue vk_clear_value = {.color = {.float32 = {0.0f, 0.0f, 0.0f, 1.0f}}};
+        VkClearValue vk_clear_value = {.color = {.float32 = {1.0f, 0.0f, 1.0f, 1.0f}}};
         VkRenderPassBeginInfo vk_render_pass_begin_info = {
                 .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
                 .pNext = NULL,
@@ -656,7 +656,6 @@ void vtk_render_frame(struct VtkWindowNative* vtk_window) {
             assert(false);
             break;
     }
-    LOGE("FRAME RENDER");
 }
 
 uint32_t vtk_find_memory_idx(VkPhysicalDevice vk_device, uint32_t typeBits, VkFlags requirements_mask, bool* found) {
