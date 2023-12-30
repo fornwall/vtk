@@ -180,7 +180,8 @@ struct VtkWindowNative* vtk_window_init(struct VtkDeviceNative* vtk_device) {
    return vtk_window;
 }
 
-VkShaderModule vtk_compile_shader(VkDevice a_device, uint8_t const* bytes, size_t size) {
+VkShaderModule vtk_device_create_shader(struct VtkDeviceNative* vtk_device, uint8_t const* bytes, size_t size) {
+    VkDevice vk_device = vtk_device->vk_device;
     VkShaderModuleCreateInfo vk_shader_module_create_info = {
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             .pNext = NULL,
@@ -189,6 +190,6 @@ VkShaderModule vtk_compile_shader(VkDevice a_device, uint8_t const* bytes, size_
             .pCode = (const uint32_t *) bytes,
     };
     VkShaderModule result;
-    CALL_VK(vkCreateShaderModule(a_device, &vk_shader_module_create_info, NULL, &result));
+    CALL_VK(vkCreateShaderModule(vk_device, &vk_shader_module_create_info, NULL, &result));
     return result;
 }

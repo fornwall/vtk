@@ -107,7 +107,7 @@ struct VtkWindowNative {
 
 
 /** Null-terminated, static string. <div rustbindgen private> */
-VkShaderModule vtk_compile_shader(VkDevice vk_device, uint8_t const* bytes, size_t size);
+VkShaderModule vtk_device_create_shader(struct VtkDeviceNative* vtk_device, uint8_t const* bytes, size_t size);
 
 struct VtkContextNative* vtk_context_init();
 
