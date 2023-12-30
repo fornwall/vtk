@@ -39,7 +39,7 @@ pub struct VtkDevice {
 unsafe impl Send for VtkDevice {}
 
 impl VtkDevice {
-    fn create_shader(&self, spirv_bytes: &[u8]) -> VtkShaderModule {
+    pub fn create_shader(&self, spirv_bytes: &[u8]) -> VtkShaderModule {
         let vulkan_handle = unsafe {
             vtk_device_create_shader(self.native_handle, spirv_bytes.as_ptr(), spirv_bytes.len())
         };
@@ -64,7 +64,7 @@ impl VtkWindow {
 }
 
 pub struct VtkShaderModule {
-    vulkan_handle: u64,
+    vulkan_handle: VkShaderModule,
 }
 
 pub struct VtkBufferAllocator {

@@ -182,6 +182,7 @@ struct VtkWindowNative* vtk_window_init(struct VtkDeviceNative* vtk_device) {
 
 VkShaderModule vtk_device_create_shader(struct VtkDeviceNative* vtk_device, uint8_t const* bytes, size_t size) {
     VkDevice vk_device = vtk_device->vk_device;
+    LOGI("Compiling shader with len %zd", size);
     VkShaderModuleCreateInfo vk_shader_module_create_info = {
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             .pNext = NULL,
