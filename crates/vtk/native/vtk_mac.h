@@ -8,8 +8,8 @@
 
 /** The main view controller. */
 @interface VtkViewController : NSViewController {
-    @public
-    struct VtkWindowNative* vtk_window;
+@public
+  struct VtkWindowNative *vtk_window;
 }
 @end
 

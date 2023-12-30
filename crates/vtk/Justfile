@@ -1,0 +1,2 @@
+format-c:
+    clang-format --sort-includes --style="{ColumnLimit: 120}" -i native/*.c native/*.h

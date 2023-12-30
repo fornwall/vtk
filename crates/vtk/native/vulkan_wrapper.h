@@ -9,13 +9,13 @@
 #endif
 
 #ifdef __ANDROID__
-# define VK_USE_PLATFORM_ANDROID_KHR 1
+#define VK_USE_PLATFORM_ANDROID_KHR 1
 #elif defined __APPLE__
-# define VK_USE_PLATFORM_MACOS_MVK 1
-# define VK_USE_PLATFORM_METAL_EXT 1
-# define VK_ENABLE_BETA_EXTENSIONS 1
+#define VK_USE_PLATFORM_MACOS_MVK 1
+#define VK_USE_PLATFORM_METAL_EXT 1
+#define VK_ENABLE_BETA_EXTENSIONS 1
 #elif defined __linux__
-# define VK_USE_PLATFORM_WAYLAND_KHR 1
+#define VK_USE_PLATFORM_WAYLAND_KHR 1
 #endif
 
 #include <vulkan/vulkan.h>
@@ -27,7 +27,7 @@
 #ifdef __cplusplus
 bool
 #else
-_Bool 
+_Bool
 #endif
 vtk_load_vulkan_symbols();
 
