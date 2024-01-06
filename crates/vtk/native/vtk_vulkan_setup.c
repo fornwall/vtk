@@ -671,11 +671,13 @@ void vtk_render_frame(struct VtkWindowNative *vtk_window) {
     assert(false);
     break;
   }
+#ifdef VTK_PLATFORM_WAYLAND
   if (vtk_window->wayland_size_requested_by_compositor.width != vtk_window->vk_extent_2d.width ||
       vtk_window->wayland_size_requested_by_compositor.height != vtk_window->vk_extent_2d.height) {
     vtk_window->vk_extent_2d = vtk_window->wayland_size_requested_by_compositor;
     vtk_recreate_swap_chain(vtk_window);
   }
+#endif
 }
 
 uint32_t vtk_find_memory_idx(VkPhysicalDevice vk_device, uint32_t typeBits, VkFlags requirements_mask, bool *found) {
