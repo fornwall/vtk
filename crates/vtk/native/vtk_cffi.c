@@ -18,7 +18,7 @@ struct VtkDeviceNative *vtk_device_init(struct VtkContextNative *vtk_context) {
       .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
       .pEngineName = "vulkan-example",
       .engineVersion = VK_MAKE_VERSION(0, 1, 0),
-      .apiVersion = VK_MAKE_VERSION(1, 2, 0),
+      .apiVersion = VK_MAKE_VERSION(1, 3, 0),
   };
 
   const char *instance_extensions[] = {

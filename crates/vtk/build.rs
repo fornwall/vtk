@@ -147,10 +147,13 @@ fn main() {
         let mut lib_dir = pb.clone();
         lib_dir.push("lib");
         println!("cargo:rustc-link-search=native={}", lib_dir.display());
+
         // Link to the libvulkan.so loader:
         println!("cargo:rustc-link-lib=dylib=vulkan");
         // Link to wayland-client
         println!("cargo:rustc-link-lib=dylib=wayland-client");
+        // Link to xkbcommon:
+        println!("cargo:rustc-link-lib=dylib=xkbcommon");
 
         #[cfg(feature = "validation")]
         {
@@ -161,6 +164,7 @@ fn main() {
         }
 
         build_c_file(&mut cc, "native/vtk_wayland.c");
+        build_c_file(&mut cc, "native/vtk_wayland_keyboard.c");
 
         // See https://wayland-book.com/xdg-shell-basics/example-code.html
         let generated_wayland_c = format!("{out_dir}/xdg-shell-client-protocol.c");

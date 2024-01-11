@@ -25,14 +25,17 @@ struct VtkWindowNative;
 // TODO
 #elif defined __linux__
 struct wl_display;
-struct wl_registry;
-struct xdg_wm_base;
-struct xdg_surface;
-struct wl_surface;
-struct wl_seat;
 struct wl_keyboard;
 struct wl_pointer;
+struct wl_registry;
+struct wl_seat;
+struct wl_surface;
+struct xdg_surface;
 struct xdg_toplevel_listener;
+struct xdg_wm_base;
+struct xkb_context;
+struct xkb_keymap;
+struct xkb_state;
 #endif
 
 struct VtkContextNative {
@@ -53,6 +56,9 @@ struct VtkContextNative {
   struct wl_seat *wayland_seat;
   struct wl_keyboard *wayland_keyboard;
   struct wl_pointer *wayland_pointer;
+  struct xkb_context *wayland_xkb_context;
+  struct xkb_state *wayland_xkb_state;
+  struct xkb_keymap *wayland_xkb_keymap;
 #endif
 };
 

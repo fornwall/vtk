@@ -1,13 +1,15 @@
-#include "xdg-shell-client-protocol.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wayland-client.h>
+#include <xkbcommon/xkbcommon.h>
 
+#include "vtk_wayland_keyboard.h"
 #include "vtk_cffi.h"
 #include "vtk_internal.h"
 #include "vtk_log.h"
 #include "vulkan_wrapper.h"
+#include "xdg-shell-client-protocol.h"
 
 #define VTK_CHECK_WL_RESULT(_expr)                                                                                     \
   if (!(_expr)) {                                                                                                      \
@@ -48,16 +50,16 @@ static void wl_seat_capabilities(void *data, struct wl_seat *wl_seat, uint32_t c
 
   bool have_keyboard = capabilities & WL_SEAT_CAPABILITY_KEYBOARD;
   if (have_keyboard && vtk_context->wayland_keyboard == NULL) {
-    vtk_context->wayland_keyboard = wl_seat_get_keyboard(vtk_context->wayland_seat);
-    // TODO: https://wayland-book.com/seat/example.html
-    // wl_keyboard_add_listener(vtk_context->wayland_keyboard, &wl_keyboard_listener, state);
+    vtk_wayland_add_keyboard_listener(vtk_context);
   } else if (!have_keyboard && vtk_context->wayland_keyboard != NULL) {
     wl_keyboard_release(vtk_context->wayland_keyboard);
     vtk_context->wayland_keyboard = NULL;
   }
 }
 
-static void wl_seat_name(void *data, struct wl_seat *wl_seat, const char *name) { LOGI("seat name: '%s'", name); }
+static void wl_seat_name(void *data, struct wl_seat *wl_seat, const char *name) {
+    LOGI("wayland seat name: '%s'", name);
+}
 
 static const struct wl_seat_listener wl_seat_listener = {
     .capabilities = wl_seat_capabilities,
@@ -111,6 +113,9 @@ struct VtkContextNative *vtk_context_init() {
   VTK_CHECK_WL_RESULT(result->wayland_registry = wl_display_get_registry(result->wayland_display));
   result->wayland_compositor = NULL;
   result->wayland_shell = NULL;
+  result->wayland_xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+  result->wayland_xkb_keymap = NULL;
+  result->wayland_xkb_state = NULL;
 
   // TODO: Avoid static listener. use inline or save in result struct.
   wl_registry_add_listener(result->wayland_registry, &vtk_wl_registry_listener, result);
@@ -119,6 +124,7 @@ struct VtkContextNative *vtk_context_init() {
   // These fields should be set from the listener:
   assert(result->wayland_compositor != NULL);
   assert(result->wayland_shell != NULL);
+  assert(result->wayland_seat != NULL);
 
   return result;
 }
