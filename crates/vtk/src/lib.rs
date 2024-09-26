@@ -32,12 +32,8 @@ enum KeyModifiers {
     Cmd,
 }
 
-struct KeyPressed {
+struct KeyPressed {}
 
-}
-
-enum MainThreadEvent {
-
-}
+enum MainThreadEvent {}
 
 struct TickInput {}

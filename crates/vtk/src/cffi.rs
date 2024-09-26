@@ -22,9 +22,7 @@ impl VtkContext {
     /// The request will be processed when `run()` is called.
     pub fn create_window(&mut self, device: &mut VtkDevice) -> VtkWindow {
         let native_handle = unsafe { vtk_window_init(device.native_handle) };
-        VtkWindow {
-            native_handle
-        }
+        VtkWindow { native_handle }
     }
 
     pub fn run(&mut self) {
@@ -43,9 +41,7 @@ impl VtkDevice {
         let vulkan_handle = unsafe {
             vtk_device_create_shader(self.native_handle, spirv_bytes.as_ptr(), spirv_bytes.len())
         };
-        VtkShaderModule {
-            vulkan_handle
-        }
+        VtkShaderModule { vulkan_handle }
     }
 }
 

@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub(crate) fn download_minimal_vulkan_sdk(out_dir: &str, directory_name: &str) -> PathBuf {
-    const MINIMAL_VULKAN_SDK_VERSION: &str = "0.0.19";
+    const MINIMAL_VULKAN_SDK_VERSION: &str = "0.0.20";
     let sdk_dir = Path::new(&out_dir).join(format!("vulkan-sdk-{}", MINIMAL_VULKAN_SDK_VERSION));
     if sdk_dir.exists() {
         return sdk_dir;
@@ -22,10 +22,11 @@ pub(crate) fn download_minimal_vulkan_sdk(out_dir: &str, directory_name: &str) -
         assert!(
             curl_status.success(),
             "failed to download prebuilt libraries: {download_url}"
-            );
+        );
     }
 
-    let sdk_tmp_dir = Path::new(&out_dir).join(format!("vulkan-sdk-{}.tmp", MINIMAL_VULKAN_SDK_VERSION));
+    let sdk_tmp_dir =
+        Path::new(&out_dir).join(format!("vulkan-sdk-{}.tmp", MINIMAL_VULKAN_SDK_VERSION));
     std::fs::create_dir_all(&sdk_tmp_dir).expect("Couldn't create directory");
     let untar_status = Command::new("tar")
         .arg("xf")
@@ -86,8 +87,7 @@ fn main() {
         .unwrap()
         .write_to_file(&output_file);
 
-    if build_target_os == "android"
-    {
+    if build_target_os == "android" {
         // Several Android NDK r26 headers are C++ only: https://github.com/android/ndk/issues/1920
         cc.cpp(true);
         cc.cpp_link_stdlib(None);
