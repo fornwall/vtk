@@ -3,6 +3,6 @@
 
 struct VtkContextNative;
 
-void vtk_wayland_add_keyboard_listener(struct VtkContextNative* vtk_context);
+void vtk_wayland_add_keyboard_listener(struct VtkContextNative *vtk_context);
 
 #endif

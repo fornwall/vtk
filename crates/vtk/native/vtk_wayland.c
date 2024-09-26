@@ -4,10 +4,10 @@
 #include <wayland-client.h>
 #include <xkbcommon/xkbcommon.h>
 
-#include "vtk_wayland_keyboard.h"
 #include "vtk_cffi.h"
 #include "vtk_internal.h"
 #include "vtk_log.h"
+#include "vtk_wayland_keyboard.h"
 #include "vulkan_wrapper.h"
 #include "xdg-shell-client-protocol.h"
 
@@ -58,7 +58,7 @@ static void wl_seat_capabilities(void *data, struct wl_seat *wl_seat, uint32_t c
 }
 
 static void wl_seat_name(void *data, struct wl_seat *wl_seat, const char *name) {
-    LOGI("wayland seat name: '%s'", name);
+  LOGI("wayland seat name: '%s'", name);
 }
 
 static const struct wl_seat_listener wl_seat_listener = {

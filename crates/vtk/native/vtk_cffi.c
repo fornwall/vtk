@@ -43,16 +43,16 @@ struct VtkDeviceNative *vtk_device_init(struct VtkContextNative *vtk_context) {
   };
 
   VkInstanceCreateInfo instance_create_info = {
-    .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-    .pNext = NULL,
-    .pApplicationInfo = &app_info,
-    .enabledLayerCount = VTK_ARRAY_SIZE(enabledLayerNames),
-    .ppEnabledLayerNames = enabledLayerNames,
-    .enabledExtensionCount = VTK_ARRAY_SIZE(instance_extensions),
-    .ppEnabledExtensionNames = instance_extensions,
+      .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+      .pNext = NULL,
+      .pApplicationInfo = &app_info,
+      .enabledLayerCount = VTK_ARRAY_SIZE(enabledLayerNames),
+      .ppEnabledLayerNames = enabledLayerNames,
+      .enabledExtensionCount = VTK_ARRAY_SIZE(instance_extensions),
+      .ppEnabledExtensionNames = instance_extensions,
 #if defined(__APPLE__) && !defined(VTK_NO_VULKAN_LOADING)
-    // Necessary to load MoltenVK through the vulkan loader:
-    .flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
+      // Necessary to load MoltenVK through the vulkan loader:
+      .flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
 #endif
   };
 
