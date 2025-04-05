@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub(crate) fn download_minimal_vulkan_sdk(out_dir: &str, directory_name: &str) -> PathBuf {
-    const MINIMAL_VULKAN_SDK_VERSION: &str = "0.0.20";
+    const MINIMAL_VULKAN_SDK_VERSION: &str = "0.0.26";
     let sdk_dir = Path::new(&out_dir).join(format!("vulkan-sdk-{}", MINIMAL_VULKAN_SDK_VERSION));
     if sdk_dir.exists() {
         return sdk_dir;
